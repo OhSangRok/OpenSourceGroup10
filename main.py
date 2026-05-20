@@ -170,3 +170,322 @@ def get_me(student_id: str = Depends(verify_token)):
         "department": result[3],
         "grade": result[4]
     }
+
+# 전체 건물 조회 API
+@app.get("/buildings")
+def get_buildings():
+
+    sql = """
+    SELECT *
+    FROM buildings
+    """
+
+    cursor.execute(sql)
+
+    results = cursor.fetchall()
+
+    buildings = []
+
+    for row in results:
+        buildings.append({
+            "building_id": row[0],
+            "building_name": row[1],
+            "latitude": float(row[2]),
+            "longitude": float(row[3]),
+            "description": row[4]
+        })
+
+    return buildings
+
+# 전체 행사 조회 API
+@app.get("/events")
+def get_events():
+
+    sql = """
+    SELECT *
+    FROM events
+    """
+
+    cursor.execute(sql)
+
+    results = cursor.fetchall()
+
+    events = []
+
+    for row in results:
+        events.append({
+            "event_id": row[0],
+            "title": row[1],
+            "description": row[2],
+            "building_id": row[3],
+            "college": row[4],
+            "department": row[5],
+            "start_datetime": row[6],
+            "end_datetime": row[7]
+        })
+
+    return events
+
+# 특정 건물 행사 조회 API
+@app.get("/events/building/{building_id}")
+def get_building_events(building_id: int):
+
+    sql = """
+    SELECT *
+    FROM events
+    WHERE building_id = %s
+    """
+
+    cursor.execute(sql, (building_id,))
+
+    results = cursor.fetchall()
+
+    events = []
+
+    for row in results:
+        events.append({
+            "event_id": row[0],
+            "title": row[1],
+            "description": row[2],
+            "building_id": row[3],
+            "college": row[4],
+            "department": row[5],
+            "start_datetime": row[6],
+            "end_datetime": row[7]
+        })
+
+    return events
+
+# 행사 즐겨찾기 추가 API
+@app.post("/favorites/{event_id}")
+def add_favorite(
+    event_id: int,
+    student_id: str = Depends(verify_token)
+):
+
+    sql = """
+    INSERT INTO favorite_events
+    (student_id, event_id)
+    VALUES (%s, %s)
+    """
+
+    values = (student_id, event_id)
+
+    try:
+        cursor.execute(sql, values)
+        db.commit()
+
+        return {"message": "즐겨찾기 추가 성공!"}
+
+    except:
+        raise HTTPException(
+            status_code=400,
+            detail="이미 즐겨찾기한 행사입니다."
+        )
+    
+# 내 즐겨찾기 조회 API
+@app.get("/favorites")
+def get_favorites(student_id: str = Depends(verify_token)):
+
+    sql = """
+    SELECT 
+        events.event_id,
+        events.title,
+        events.description,
+        events.building_id,
+        events.college,
+        events.department,
+        events.start_datetime,
+        events.end_datetime
+    FROM favorite_events
+    JOIN events
+    ON favorite_events.event_id = events.event_id
+    WHERE favorite_events.student_id = %s
+    """
+
+    cursor.execute(sql, (student_id,))
+    results = cursor.fetchall()
+
+    favorites = []
+
+    for row in results:
+        favorites.append({
+            "event_id": row[0],
+            "title": row[1],
+            "description": row[2],
+            "building_id": row[3],
+            "college": row[4],
+            "department": row[5],
+            "start_datetime": row[6],
+            "end_datetime": row[7]
+        })
+
+    return favorites
+
+# 즐겨찾기 삭제 API
+@app.delete("/favorites/{event_id}")
+def delete_favorite(
+    event_id: int,
+    student_id: str = Depends(verify_token)
+):
+
+    sql = """
+    DELETE FROM favorite_events
+    WHERE student_id = %s
+    AND event_id = %s
+    """
+
+    cursor.execute(sql, (student_id, event_id))
+    db.commit()
+
+    if cursor.rowcount == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="즐겨찾기한 행사가 아닙니다."
+        )
+
+    return {"message": "즐겨찾기 삭제 성공!"}
+
+# 전체 버스 정류장 조회 API
+@app.get("/bus-stops")
+def get_bus_stops():
+
+    sql = """
+    SELECT *
+    FROM bus_stops
+    """
+
+    cursor.execute(sql)
+    results = cursor.fetchall()
+
+    bus_stops = []
+
+    for row in results:
+        bus_stops.append({
+            "stop_id": row[0],
+            "stop_name": row[1],
+            "latitude": float(row[2]),
+            "longitude": float(row[3]),
+            "description": row[4]
+        })
+
+    return bus_stops
+
+# 특정 정류장 시간표 조회 API
+@app.get("/bus-stops/{stop_id}/schedules")
+def get_bus_schedules(stop_id: int):
+
+    sql = """
+    SELECT *
+    FROM bus_schedules
+    WHERE stop_id = %s
+    """
+
+    cursor.execute(sql, (stop_id,))
+    results = cursor.fetchall()
+
+    schedules = []
+
+    for row in results:
+        schedules.append({
+            "schedule_id": row[0],
+            "stop_id": row[1],
+            "bus_number": row[2],
+            "arrival_time": str(row[3]),
+            "weekday_type": row[4]
+        })
+
+    return schedules
+
+# 현재 시간 기준 다음 버스 조회 API
+@app.get("/bus-stops/{stop_id}/next-buses")
+def get_next_buses(stop_id: int):
+
+    now = datetime.utcnow() + timedelta(hours=9)
+
+    sql = """
+    SELECT bus_number, arrival_time
+    FROM bus_schedules
+    WHERE stop_id = %s
+    ORDER BY arrival_time ASC
+    """
+
+    cursor.execute(sql, (stop_id,))
+    results = cursor.fetchall()
+
+    buses = []
+
+    for row in results:
+        bus_number = row[0]
+        arrival_time = row[1]
+
+        arrival_datetime = datetime.combine(datetime.today(), datetime.min.time()) + arrival_time
+
+        remaining_minutes = int((arrival_datetime - now).total_seconds() / 60)
+
+        if remaining_minutes >= 0:
+            buses.append({
+                "bus_number": bus_number,
+                "arrival_time": str(arrival_time),
+                "remaining_minutes": remaining_minutes
+            })
+
+    return buses
+
+# 행사 삭제 API
+@app.delete("/events/{event_id}")
+def delete_event(event_id: int):
+
+    sql = """
+    DELETE FROM events
+    WHERE event_id = %s
+    """
+
+    cursor.execute(sql, (event_id,))
+    db.commit()
+
+    if cursor.rowcount == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="행사를 찾을 수 없습니다."
+        )
+
+    return {"message": "행사 삭제 성공!"}
+
+# 행사 수정 API
+@app.put("/events/{event_id}")
+def update_event(event_id: int, event: EventCreate):
+
+    sql = """
+    UPDATE events
+    SET title = %s,
+        description = %s,
+        building_id = %s,
+        college = %s,
+        department = %s,
+        start_datetime = %s,
+        end_datetime = %s
+    WHERE event_id = %s
+    """
+
+    values = (
+        event.title,
+        event.description,
+        event.building_id,
+        event.college,
+        event.department,
+        event.start_datetime,
+        event.end_datetime,
+        event_id
+    )
+
+    cursor.execute(sql, values)
+    db.commit()
+
+    if cursor.rowcount == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="행사를 찾을 수 없습니다."
+        )
+
+    return {"message": "행사 수정 성공!"}

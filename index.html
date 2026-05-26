@@ -69,6 +69,21 @@
         #sidebar.hidden {
             display: none;
         }
+        #floating-time {
+          position: absolute;
+           top: 20px;
+           right: 20px;
+           z-index: 10;
+
+           background: white;
+           padding: 12px 18px;
+           border-radius: 12px;
+
+           box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+
+           font-size: 16px;
+           font-weight: 700;
+        }
     </style>
 </head>
 <body>
@@ -76,8 +91,8 @@
 <div class="wrapper">
     <div id="sidebar" class="hidden">
         <div class="header">
-            <h1>캠퍼스 버스 알리미</h1>
-            <p>실시간 학교 버스 위치와 시간표</p>
+            <h1 id="sidebar-title">캠퍼스 버스 알리미</h1>
+            <p id="sidebar-subtitle">실시간 학교 버스 위치와 시간표</p>
         </div>
         
         <div class="search-container">
@@ -89,6 +104,7 @@
     </div>
 
     <div id="map-container">
+        <div id="floating-time"></div>
         <div id="map"></div>
         <button class="my-location-btn">📍</button>
     </div>
@@ -101,7 +117,7 @@
 
     var options = {
         center: new kakao.maps.LatLng(37.3216, 127.1269),
-        level: 2
+        level: 3
     };
 
     var map = new kakao.maps.Map(container, options);
@@ -161,6 +177,221 @@
     });
 });
 
+var buildings = [
+    {
+        name: "체육관-공연예술센터",
+        lat: 37.319417,
+        lng: 127.132615,
+        info: "체육관 및 공연예술센터"
+    },
+    {
+        name: "인문관",
+        lat: 37.321731,
+        lng: 127.129090,
+        info: "인문관 건물"
+    },
+    {
+        name: "퇴계기념중앙도서관",
+        lat: 37.321200,
+        lng: 127.127420,
+        info: "중앙도서관"
+    },
+    {
+        name: "학군단",
+        lat: 37.318849,
+        lng: 127.131405,
+        info: "학군단"
+    },
+    {
+        name: "대운동장",
+        lat: 37.320808,
+        lng: 127.133096,
+        info: "대운동장"
+    },
+    {
+        name: "미술관",
+        lat: 37.319747,
+        lng: 127.130996,
+        info: "미술관"
+    },
+    {
+        name: "단국역사관",
+        lat: 37.319507,
+        lng: 127.130061,
+        info: "단국역사관"
+    },
+    {
+        name: "콘서트홀",
+        lat: 37.319183,
+        lng: 127.129785,
+        info: "콘서트홀"
+    },
+    {
+        name: "난파음악관",
+        lat: 37.318794,
+        lng: 127.129212,
+        info: "난파음악관"
+    },
+    {
+        name: "연민기념관",
+        lat: 37.318085,
+        lng: 127.128425,
+        info: "연민기념관"
+    },
+    {
+        name: "무용관",
+        lat: 37.315938,
+        lng: 127.127312,
+        info: "무용관"
+    },
+    {
+        name: "테니스장",
+        lat: 37.320740,
+        lng: 127.129829,
+        info: "테니스장"
+    },
+    {
+        name: "석주선기념박물관",
+        lat: 37.319170,
+        lng: 127.127908,
+        info: "석주선 기념박물관"
+    },
+    {
+        name: "평화의광장",
+        lat: 37.320171,
+        lng: 127.129047,
+        info: "평화의 광장"
+    },
+    {
+        name: "법학관-대학원동",
+        lat: 37.321223,
+        lng: 127.129378,
+        info: "법학관-대학원동"
+    },
+    {
+        name: "상경관",
+        lat: 37.322337,
+        lng: 127.128947,
+        info: "상경관"
+    },
+    {
+        name: "사범관",
+        lat: 37.322888,
+        lng: 127.129074,
+        info: "사범관"
+    },
+    {
+        name: "미디어센터",
+        lat: 37.322317,
+        lng: 127.127625,
+        info: "미디어 센터"
+    },
+    {
+        name: "소프트웨어 ICT관",
+        lat: 37.322836,
+        lng: 127.127269,
+        info: "소프트웨어 ICT관"
+    },
+    {
+        name: "범정관",
+        lat: 37.321781,
+        lng: 127.126527,
+        info: "범정관"
+    },
+    {
+        name: "복지관-죽전치과병원",
+        lat: 37.322089,
+        lng: 127.124894,
+        info: "복지관-죽전치과병원"
+    },
+    {
+        name: "글로컬 산학협력관",
+        lat: 37.321990,
+        lng: 127.123734,
+        info: "글로컬 산학협력관"
+    },
+    {
+        name: "사회과학관",
+        lat: 37.321368,
+        lng: 127.125416,
+        info: "사회과학관"
+    },
+    {
+        name: "제 1공학관",
+        lat: 37.320960,
+        lng: 127.125880,
+        info: "제 1공학관"
+    },
+    {
+        name: "제 2공학관",
+        lat: 37.320592,
+        lng: 127.126358,
+        info: "제 2공학관"
+    },
+    {
+        name: "제 3공학관",
+        lat: 37.320274,
+        lng: 127.126804,
+        info: "제 3공학관"
+    },
+    {
+        name: "주차빌딩",
+        lat: 37.320305,
+        lng: 127.125004,
+        info: "주차빌딩"
+    },
+    {
+        name: "종합실험동",
+        lat: 37.319926,
+        lng: 127.125567,
+        info: "종합실험동"
+    },
+    {
+        name: "국제관",
+        lat: 37.319034,
+        lng: 127.127181,
+        info: "국제관"
+    },
+    {
+        name: "노천마당",
+        lat: 37.319758,
+        lng: 127.127485,
+        info: "노천마당"
+    },
+];
+
+buildings.forEach(function(building) {
+
+    var buildingArea = new kakao.maps.Circle({
+        center: new kakao.maps.LatLng(building.lat, building.lng),
+        radius: 25,
+        strokeWeight: 0,
+        fillColor: '#000000',
+        fillOpacity: 0.01,
+        map: map
+    });
+
+    kakao.maps.event.addListener(buildingArea, 'click', function() {
+        document.getElementById('sidebar').classList.remove('hidden');
+        document.getElementById('sidebar-title').innerText =
+    '건물 정보';
+
+    document.getElementById('sidebar-subtitle').innerText =
+        building.name;
+        document.getElementById('timetable-panel').innerHTML = `
+            <button onclick="closeSidebar()"
+                style="float:right; border:none; background:none; font-size:20px; cursor:pointer;">
+                ×
+            </button>
+
+            <div class="bus-card">
+                <div class="bus-name">${building.name}</div>
+                <div class="bus-status">${building.info}</div>
+            </div>
+        `;
+    });
+});
+
     async function loadBusArrival(station) {
 
     const serviceKey = "b109eeddfb82499c9fe238943b8bc0022b8c44c95461c2d64cd8897712bf48b2";
@@ -214,8 +445,37 @@
     console.log("정류장:", station.name, "노선:", bus.routeName, "routeId:", bus.routeId);
 });
 
+    document.getElementById('sidebar-title').innerText =
+        '버스 도착 정보';
+
+    document.getElementById('sidebar-subtitle').innerText =
+      station.name;
+
     document.getElementById('timetable-panel').innerHTML = html;
 }
+
+function closeSidebar() {
+    document.getElementById('sidebar').classList.add('hidden');
+}
+
+function updateCurrentTime() {
+
+    const now = new Date();
+
+    const timeString = now.toLocaleTimeString('ko-KR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+
+    document.getElementById('floating-time').innerText =
+        `현재 시간 : ${timeString}`;
+}
+
+updateCurrentTime();
+
+setInterval(updateCurrentTime, 1000);
+
 </script>
 </body>
 </html>

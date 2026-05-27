@@ -38,6 +38,16 @@ class UserLogin(BaseModel):
     student_id: str
     password: str
 
+#행사 데이터 형식
+class EventCreate(BaseModel):
+    title: str
+    description: str
+    building_id: int
+    college: str
+    department: str
+    start_datetime: datetime
+    end_datetime: datetime
+
 # JWT 토큰 생성 함수
 def create_access_token(data: dict):
     to_encode = data.copy()

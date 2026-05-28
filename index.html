@@ -233,6 +233,27 @@
             font-size: 12px;
             color: #777;
         }
+
+        .event-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .favorite-star {
+            border: none;
+            background: transparent;
+            color: #c8c8c8;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .favorite-star.active {
+            color: #f4c542;
+        }
     </style>
 </head>
 
@@ -268,6 +289,7 @@
         var map = null;
         var defaultCenter = null;
         var defaultLevel = null;
+        var favoriteEventIds = new Set();
 
         function initMap() {
             kakao.maps.load(function () {
@@ -396,6 +418,7 @@
                         }
 
                         const events = await loadBuildingEvents(buildingId);
+                        favoriteEventIds = await loadFavoriteEventIds();
 
                         let eventHtml = "";
 
@@ -403,23 +426,28 @@
                             eventHtml = `<p class="overlay-empty">등록된 일정이 없습니다.</p>`;
                         } else {
                             events.forEach(function (event) {
-                                eventHtml += `
-                    <div class="overlay-event">
-                        <strong>${event.title}</strong>
-                        <p>${event.description || ""}</p>
-                        <small>${formatDateTime(event.start_datetime)} ~ ${formatDateTime(event.end_datetime)}</small>
-                    </div>
-                `;
+                                const isFavorite = favoriteEventIds.has(event.event_id);
+
+                                eventHtml += [
+                                    `<div class="overlay-event">`,
+                                    `<div class="event-title-row">`,
+                                    `<strong>${event.title}</strong>`,
+                                    `<button class="favorite-star ${isFavorite ? "active" : ""}" onclick="toggleFavorite(${event.event_id}, this)">★</button>`,
+                                    `</div>`,
+                                    `<p>${event.description || ""}</p>`,
+                                    `<small>${formatDateTime(event.start_datetime)} ~ ${formatDateTime(event.end_datetime)}</small>`,
+                                    `</div>`
+                                ].join("");
                             });
                         }
 
                         const content = document.createElement("div");
                         content.className = "building-overlay";
-                        content.innerHTML = `
-            <button class="overlay-close" onclick="closeBuildingOverlay()">×</button>
-            <h3>${building.name}</h3>
-            ${eventHtml}
-        `;
+                        content.innerHTML = [
+                            `<button class="overlay-close" onclick="closeBuildingOverlay()">×</button>`,
+                            `<h3>${building.name}</h3>`,
+                            eventHtml
+                        ].join("");
 
                         currentOverlay = new kakao.maps.CustomOverlay({
                             position: position,
@@ -502,6 +530,75 @@
             } catch (error) {
                 console.error(error);
                 return [];
+            }
+        }
+
+        async function loadFavoriteEventIds() {
+            const token = localStorage.getItem("access_token");
+
+            if (!token) {
+                return new Set();
+            }
+
+            try {
+                const response = await fetch("/favorites", {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    return new Set();
+                }
+
+                const favorites = await response.json();
+
+                return new Set(
+                    favorites.map(function (event) {
+                        return event.event_id;
+                    })
+                );
+            } catch (error) {
+                console.error(error);
+                return new Set();
+            }
+        }
+
+        async function toggleFavorite(eventId, button) {
+            const token = localStorage.getItem("access_token");
+
+            if (!token) {
+                location.href = "/login";
+                return;
+            }
+
+            const isFavorite = favoriteEventIds.has(eventId);
+            const method = isFavorite ? "DELETE" : "POST";
+
+            try {
+                const response = await fetch(`/favorites/${eventId}`, {
+                    method: method,
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    alert(data.detail || "즐겨찾기 처리 중 오류가 발생했습니다.");
+                    return;
+                }
+
+                if (isFavorite) {
+                    favoriteEventIds.delete(eventId);
+                    button.classList.remove("active");
+                } else {
+                    favoriteEventIds.add(eventId);
+                    button.classList.add("active");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("즐겨찾기 요청에 실패했습니다.");
             }
         }
 

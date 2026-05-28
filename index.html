@@ -176,6 +176,63 @@
             font-weight: 700;
             cursor: pointer;
         }
+
+        #auth-buttons span {
+            display: flex;
+            align-items: center;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .building-overlay {
+            position: relative;
+            width: 280px;
+            max-height: 260px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+            border: 1px solid #e5e8eb;
+        }
+
+        .building-overlay h3 {
+            margin: 0 28px 12px 0;
+            font-size: 18px;
+        }
+
+        .overlay-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            border: none;
+            background: transparent;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .overlay-event {
+            padding: 10px 0;
+            border-top: 1px solid #edf0f2;
+        }
+
+        .overlay-event strong {
+            display: block;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .overlay-event p {
+            margin: 5px 0;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .overlay-event small,
+        .overlay-empty {
+            font-size: 12px;
+            color: #777;
+        }
     </style>
 </head>
 
@@ -206,18 +263,32 @@
         </div>
     </div>
 
-    <!-- 카카오 지도 API + 지도 실행 코드 -->
     <script>
+        var currentOverlay = null;
+        var map = null;
+        var defaultCenter = null;
+        var defaultLevel = null;
+
         function initMap() {
             kakao.maps.load(function () {
                 var container = document.getElementById('map');
 
                 var options = {
                     center: new kakao.maps.LatLng(37.3216, 127.1269),
-                    level: 3
+                    level: 3,
+                    draggable: false,
+                    scrollwheel: false,
+                    disableDoubleClick: true,
+                    disableDoubleClickZoom: true
                 };
 
-                var map = new kakao.maps.Map(container, options);
+                map = new kakao.maps.Map(container, options);
+
+                map.setDraggable(false);
+                map.setZoomable(false);
+
+                defaultCenter = options.center;
+                defaultLevel = options.level;
 
                 var stations = [
                     {
@@ -271,39 +342,39 @@
                 });
 
                 var buildings = [
-                    { name: "체육관-공연예술센터", lat: 37.319417, lng: 127.132615, info: "체육관 및 공연예술센터" },
-                    { name: "인문관", lat: 37.321731, lng: 127.129090, info: "인문관 건물" },
-                    { name: "퇴계기념중앙도서관", lat: 37.321200, lng: 127.127420, info: "중앙도서관" },
-                    { name: "학군단", lat: 37.318849, lng: 127.131405, info: "학군단" },
-                    { name: "대운동장", lat: 37.320808, lng: 127.133096, info: "대운동장" },
-                    { name: "미술관", lat: 37.319747, lng: 127.130996, info: "미술관" },
-                    { name: "단국역사관", lat: 37.319507, lng: 127.130061, info: "단국역사관" },
-                    { name: "콘서트홀", lat: 37.319183, lng: 127.129785, info: "콘서트홀" },
-                    { name: "난파음악관", lat: 37.318794, lng: 127.129212, info: "난파음악관" },
-                    { name: "연민기념관", lat: 37.318085, lng: 127.128425, info: "연민기념관" },
-                    { name: "무용관", lat: 37.315938, lng: 127.127312, info: "무용관" },
-                    { name: "테니스장", lat: 37.320740, lng: 127.129829, info: "테니스장" },
-                    { name: "석주선기념박물관", lat: 37.319170, lng: 127.127908, info: "석주선 기념박물관" },
-                    { name: "평화의광장", lat: 37.320171, lng: 127.129047, info: "평화의 광장" },
-                    { name: "법학관-대학원동", lat: 37.321223, lng: 127.129378, info: "법학관-대학원동" },
-                    { name: "상경관", lat: 37.322337, lng: 127.128947, info: "상경관" },
-                    { name: "사범관", lat: 37.322888, lng: 127.129074, info: "사범관" },
-                    { name: "미디어센터", lat: 37.322317, lng: 127.127625, info: "미디어 센터" },
-                    { name: "소프트웨어 ICT관", lat: 37.322836, lng: 127.127269, info: "소프트웨어 ICT관" },
-                    { name: "범정관", lat: 37.321781, lng: 127.126527, info: "범정관" },
-                    { name: "복지관-죽전치과병원", lat: 37.322089, lng: 127.124894, info: "복지관-죽전치과병원" },
-                    { name: "글로컬 산학협력관", lat: 37.321990, lng: 127.123734, info: "글로컬 산학협력관" },
-                    { name: "사회과학관", lat: 37.321368, lng: 127.125416, info: "사회과학관" },
-                    { name: "제 1공학관", lat: 37.320960, lng: 127.125880, info: "제 1공학관" },
-                    { name: "제 2공학관", lat: 37.320592, lng: 127.126358, info: "제 2공학관" },
-                    { name: "제 3공학관", lat: 37.320274, lng: 127.126804, info: "제 3공학관" },
-                    { name: "주차빌딩", lat: 37.320305, lng: 127.125004, info: "주차빌딩" },
-                    { name: "종합실험동", lat: 37.319926, lng: 127.125567, info: "종합실험동" },
-                    { name: "국제관", lat: 37.319034, lng: 127.127181, info: "국제관" },
-                    { name: "노천마당", lat: 37.319758, lng: 127.127485, info: "노천마당" }
+                    { building_id: 1, name: "체육관-공연예술센터", lat: 37.319417, lng: 127.132615, info: "체육관 및 공연예술센터" },
+                    { building_id: 2, name: "인문관", lat: 37.321731, lng: 127.129090, info: "인문관 건물" },
+                    { building_id: 3, name: "퇴계기념중앙도서관", lat: 37.321200, lng: 127.127420, info: "중앙도서관" },
+                    { building_id: 4, name: "학군단", lat: 37.318849, lng: 127.131405, info: "학군단" },
+                    { building_id: 5, name: "대운동장", lat: 37.320808, lng: 127.133096, info: "대운동장" },
+                    { building_id: 6, name: "미술관", lat: 37.319747, lng: 127.130996, info: "미술관" },
+                    { building_id: 7, name: "단국역사관", lat: 37.319507, lng: 127.130061, info: "단국역사관" },
+                    { building_id: 8, name: "콘서트홀", lat: 37.319183, lng: 127.129785, info: "콘서트홀" },
+                    { building_id: 9, name: "난파음악관", lat: 37.318794, lng: 127.129212, info: "난파음악관" },
+                    { building_id: 10, name: "연민기념관", lat: 37.318085, lng: 127.128425, info: "연민기념관" },
+                    { building_id: 11, name: "무용관", lat: 37.315938, lng: 127.127312, info: "무용관" },
+                    { building_id: 12, name: "테니스장", lat: 37.320740, lng: 127.129829, info: "테니스장" },
+                    { building_id: 13, name: "석주선기념박물관", lat: 37.319170, lng: 127.127908, info: "석주선 기념박물관" },
+                    { building_id: 14, name: "평화의광장", lat: 37.320171, lng: 127.129047, info: "평화의 광장" },
+                    { building_id: 15, name: "법학관-대학원동", lat: 37.321223, lng: 127.129378, info: "법학관-대학원동" },
+                    { building_id: 16, name: "상경관", lat: 37.322337, lng: 127.128947, info: "상경관" },
+                    { building_id: 17, name: "사범관", lat: 37.322888, lng: 127.129074, info: "사범관" },
+                    { building_id: 18, name: "미디어센터", lat: 37.322317, lng: 127.127625, info: "미디어 센터" },
+                    { building_id: 19, name: "소프트웨어 ICT관", lat: 37.322836, lng: 127.127269, info: "소프트웨어 ICT관" },
+                    { building_id: 20, name: "범정관", lat: 37.321781, lng: 127.126527, info: "범정관" },
+                    { building_id: 21, name: "복지관-죽전치과병원", lat: 37.322089, lng: 127.124894, info: "복지관-죽전치과병원" },
+                    { building_id: 22, name: "글로컬 산학협력관", lat: 37.321990, lng: 127.123734, info: "글로컬 산학협력관" },
+                    { building_id: 23, name: "사회과학관", lat: 37.321368, lng: 127.125416, info: "사회과학관" },
+                    { building_id: 24, name: "제 1공학관", lat: 37.320960, lng: 127.125880, info: "제 1공학관" },
+                    { building_id: 25, name: "제 2공학관", lat: 37.320592, lng: 127.126358, info: "제 2공학관" },
+                    { building_id: 26, name: "제 3공학관", lat: 37.320274, lng: 127.126804, info: "제 3공학관" },
+                    { building_id: 27, name: "주차빌딩", lat: 37.320305, lng: 127.125004, info: "주차빌딩" },
+                    { building_id: 28, name: "종합실험동", lat: 37.319926, lng: 127.125567, info: "종합실험동" },
+                    { building_id: 29, name: "국제관", lat: 37.319034, lng: 127.127181, info: "국제관" },
+                    { building_id: 30, name: "노천마당", lat: 37.319758, lng: 127.127485, info: "노천마당" }
                 ];
 
-                buildings.forEach(function (building) {
+                buildings.forEach(function (building, index) {
                     var buildingArea = new kakao.maps.Circle({
                         center: new kakao.maps.LatLng(building.lat, building.lng),
                         radius: 25,
@@ -313,22 +384,50 @@
                         map: map
                     });
 
-                    kakao.maps.event.addListener(buildingArea, 'click', function () {
-                        document.getElementById('sidebar').classList.remove('hidden');
-                        document.getElementById('sidebar-title').innerText = '건물 정보';
-                        document.getElementById('sidebar-subtitle').innerText = building.name;
+                    kakao.maps.event.addListener(buildingArea, 'click', async function () {
+                        const buildingId = index + 1;
+                        const position = new kakao.maps.LatLng(building.lat, building.lng);
 
-                        document.getElementById('timetable-panel').innerHTML = `
-                        <button onclick="closeSidebar()"
-                            style="float:right; border:none; background:none; font-size:20px; cursor:pointer;">
-                            ×
-                        </button>
+                        map.setCenter(position);
+                        map.setLevel(2);
 
-                        <div class="bus-card">
-                            <div class="bus-name">${building.name}</div>
-                            <div class="bus-status">${building.info}</div>
-                        </div>
-                    `;
+                        if (currentOverlay) {
+                            currentOverlay.setMap(null);
+                        }
+
+                        const events = await loadBuildingEvents(buildingId);
+
+                        let eventHtml = "";
+
+                        if (events.length === 0) {
+                            eventHtml = `<p class="overlay-empty">등록된 일정이 없습니다.</p>`;
+                        } else {
+                            events.forEach(function (event) {
+                                eventHtml += `
+                    <div class="overlay-event">
+                        <strong>${event.title}</strong>
+                        <p>${event.description || ""}</p>
+                        <small>${formatDateTime(event.start_datetime)} ~ ${formatDateTime(event.end_datetime)}</small>
+                    </div>
+                `;
+                            });
+                        }
+
+                        const content = document.createElement("div");
+                        content.className = "building-overlay";
+                        content.innerHTML = `
+            <button class="overlay-close" onclick="closeBuildingOverlay()">×</button>
+            <h3>${building.name}</h3>
+            ${eventHtml}
+        `;
+
+                        currentOverlay = new kakao.maps.CustomOverlay({
+                            position: position,
+                            content: content,
+                            yAnchor: 1.15
+                        });
+
+                        currentOverlay.setMap(map);
                     });
                 });
             });
@@ -395,6 +494,36 @@
         function closeSidebar() {
             document.getElementById('sidebar').classList.add('hidden');
         }
+        async function loadBuildingEvents(buildingId) {
+            try {
+                const response = await fetch(`/events/building/${buildingId}`);
+                const events = await response.json();
+                return events;
+            } catch (error) {
+                console.error(error);
+                return [];
+            }
+        }
+
+        function closeBuildingOverlay() {
+            if (currentOverlay) {
+                currentOverlay.setMap(null);
+                currentOverlay = null;
+            }
+
+            if (map && defaultCenter && defaultLevel) {
+                map.setCenter(defaultCenter);
+                map.setLevel(defaultLevel);
+            }
+        }
+
+        function formatDateTime(value) {
+            if (!value) {
+                return "";
+            }
+
+            return String(value).replace("T", " ").slice(0, 16);
+        }
 
         const kakaoScript = document.createElement('script');
         kakaoScript.src = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=da25ccc59a0513e63b964a69e8709fd9&autoload=false";
@@ -408,6 +537,38 @@
         `;
         };
         document.head.appendChild(kakaoScript);
+
+        function updateAuthButtons() {
+            const token = localStorage.getItem("access_token");
+            const name = localStorage.getItem("name");
+            const authButtons = document.getElementById("auth-buttons");
+
+            if (!authButtons) {
+                return;
+            }
+
+            if (token && name) {
+                authButtons.innerHTML = `
+            <span>${name}님</span>
+            <button onclick="logout()">로그아웃</button>
+        `;
+            } else {
+                authButtons.innerHTML = `
+            <button onclick="location.href='/login'">로그인</button>
+            <button onclick="location.href='/register'">회원가입</button>
+        `;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("name");
+            updateAuthButtons();
+        }
+
+        window.addEventListener("DOMContentLoaded", function () {
+            updateAuthButtons();
+        });
     </script>
 </body>
 

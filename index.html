@@ -131,8 +131,7 @@
             height: 100%;
         }
 
-        /* 플로팅 버튼 (지도 위 버튼) */
-        .my-location-btn {
+        .favorite-list-btn {
             position: absolute;
             bottom: 30px;
             right: 30px;
@@ -144,7 +143,8 @@
             border-radius: 50%;
             box-shadow: var(--card-shadow);
             cursor: pointer;
-            font-size: 20px;
+            font-size: 22px;
+            color: #f4c542;
         }
 
         #sidebar.hidden {
@@ -254,6 +254,10 @@
         .favorite-star.active {
             color: #f4c542;
         }
+
+        .favorite-list-btn.is-hidden {
+            display: none;
+        }
     </style>
 </head>
 
@@ -280,7 +284,7 @@
                 <button onclick="location.href='/register'">회원가입</button>
             </div>
             <div id="map"></div>
-            <button class="my-location-btn">📍</button>
+            <button class="favorite-list-btn is-hidden" onclick="openFavoriteList()">★</button>
         </div>
     </div>
 
@@ -390,7 +394,7 @@
                     { building_id: 24, name: "제 1공학관", lat: 37.320960, lng: 127.125880, info: "제 1공학관" },
                     { building_id: 25, name: "제 2공학관", lat: 37.320592, lng: 127.126358, info: "제 2공학관" },
                     { building_id: 26, name: "제 3공학관", lat: 37.320274, lng: 127.126804, info: "제 3공학관" },
-                    { building_id: 27, name: "주차빌딩", lat: 37.320305, lng: 127.125004, info: "주차빌딩" },
+                    { building_id: 27, name: "혜당관", lat: 37.320437, lng: 127.128377, info: "혜당관" },
                     { building_id: 28, name: "종합실험동", lat: 37.319926, lng: 127.125567, info: "종합실험동" },
                     { building_id: 29, name: "국제관", lat: 37.319034, lng: 127.127181, info: "국제관" },
                     { building_id: 30, name: "노천마당", lat: 37.319758, lng: 127.127485, info: "노천마당" }
@@ -602,6 +606,100 @@
             }
         }
 
+        async function openFavoriteList() {
+            const token = localStorage.getItem("access_token");
+
+            if (!token) {
+                alert("로그인 후 즐겨찾기 목록을 볼 수 있습니다.");
+                location.href = "/login";
+                return;
+            }
+
+            try {
+                const response = await fetch("/favorites", {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    alert("즐겨찾기 목록을 불러오지 못했습니다.");
+                    return;
+                }
+
+                const favorites = await response.json();
+
+                document.getElementById("sidebar").classList.remove("hidden");
+                document.getElementById("sidebar-title").innerText = "내 즐겨찾기";
+                document.getElementById("sidebar-subtitle").innerText = "저장한 행사 일정";
+
+                let favoriteHtml = "";
+
+                if (favorites.length === 0) {
+                    favoriteHtml = `<p class="overlay-empty">즐겨찾기한 일정이 없습니다.</p>`;
+                } else {
+                    favorites.forEach(function (event) {
+                        favoriteHtml += [
+                            `<div class="bus-card">`,
+                            `<div class="event-title-row">`,
+                            `<div class="bus-name">${event.title}</div>`,
+                            `<button class="favorite-star active" onclick="removeFavoriteFromList(${event.event_id}, this)">★</button>`,
+                            `</div>`,
+                            `<div class="bus-status">${event.description || ""}</div>`,
+                            `<div class="arrival-time">${formatDateTime(event.start_datetime)} ~ ${formatDateTime(event.end_datetime)}</div>`,
+                            `</div>`
+                        ].join("");
+                    });
+                }
+
+                document.getElementById("timetable-panel").innerHTML = favoriteHtml;
+            } catch (error) {
+                console.error(error);
+                alert("즐겨찾기 목록 요청에 실패했습니다.");
+            }
+        }
+
+        async function removeFavoriteFromList(eventId, button) {
+            const token = localStorage.getItem("access_token");
+
+            if (!token) {
+                alert("로그인 후 이용해주세요.");
+                location.href = "/login";
+                return;
+            }
+
+            try {
+                const response = await fetch(`/favorites/${eventId}`, {
+                    method: "DELETE",
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    alert("즐겨찾기 삭제에 실패했습니다.");
+                    return;
+                }
+
+                favoriteEventIds.delete(eventId);
+
+                const eventBox = button.closest(".bus-card");
+
+                if (eventBox) {
+                    eventBox.remove();
+                }
+
+                const panel = document.getElementById("timetable-panel");
+
+                if (panel && panel.children.length === 0) {
+                    panel.innerHTML = `<p class="overlay-empty">즐겨찾기한 일정이 없습니다.</p>`;
+                }
+            } catch (error) {
+                console.error(error);
+                alert("즐겨찾기 삭제 요청에 실패했습니다.");
+            }
+        }
+
         function closeBuildingOverlay() {
             if (currentOverlay) {
                 currentOverlay.setMap(null);
@@ -639,32 +737,56 @@
             const token = localStorage.getItem("access_token");
             const name = localStorage.getItem("name");
             const authButtons = document.getElementById("auth-buttons");
+            const favoriteListButton = document.querySelector(".favorite-list-btn");
 
             if (!authButtons) {
                 return;
             }
 
             if (token && name) {
-                authButtons.innerHTML = `
-            <span>${name}님</span>
-            <button onclick="logout()">로그아웃</button>
-        `;
+                authButtons.innerHTML = [
+                    `<span>${name}님</span>`,
+                    `<button onclick="logout()">로그아웃</button>`
+                ].join("");
+
+                if (favoriteListButton) {
+                    favoriteListButton.classList.remove("is-hidden");
+                }
             } else {
-                authButtons.innerHTML = `
-            <button onclick="location.href='/login'">로그인</button>
-            <button onclick="location.href='/register'">회원가입</button>
-        `;
+                authButtons.innerHTML = [
+                    `<button onclick="location.href='/login'">로그인</button>`,
+                    `<button onclick="location.href='/register'">회원가입</button>`
+                ].join("");
+
+                if (favoriteListButton) {
+                    favoriteListButton.classList.add("is-hidden");
+                }
             }
         }
 
         function logout() {
             localStorage.removeItem("access_token");
             localStorage.removeItem("name");
+
+            favoriteEventIds = new Set();
+
+            document.querySelectorAll(".favorite-star").forEach(function (button) {
+                button.classList.remove("active");
+            });
+
+            closeBuildingOverlay();
             updateAuthButtons();
         }
 
         window.addEventListener("DOMContentLoaded", function () {
             updateAuthButtons();
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                closeBuildingOverlay();
+                closeSidebar();
+            }
         });
     </script>
 </body>

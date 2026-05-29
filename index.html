@@ -290,6 +290,7 @@
         var favoriteEventIds = new Set();
         var campusBuildings = [];
         var showBuildingOverlay = null;
+        var debugPositionMode = false;
 
         function initMap() {
             kakao.maps.load(function () {
@@ -315,32 +316,32 @@
                 var stations = [
                     {
                         name: "단국대정문",
-                        lat: 37.3233333,
-                        lng: 127.12585,
+                        lat: 37.32333200,
+                        lng: 127.125957070,
                         stationId: "228001978"
                     },
                     {
                         name: "단국대.치과병원",
-                        lat: 37.32235,
-                        lng: 127.1254833,
+                        lat: 37.32230530,
+                        lng: 127.12550406,
                         stationId: "228001737"
                     },
                     {
                         name: "단국대.인문관",
-                        lat: 37.3222333,
-                        lng: 127.1283,
+                        lat: 37.322212227,
+                        lng: 127.12827934,
                         stationId: "228001981"
                     },
                     {
                         name: "단국대.종합실험동",
-                        lat: 37.3201667,
-                        lng: 127.1256833,
+                        lat: 37.32023267,
+                        lng: 127.1257488,
                         stationId: "228001979"
                     },
                     {
                         name: "단국대.평화의광장",
-                        lat: 37.3201333,
-                        lng: 127.1287833,
+                        lat: 37.3202073,
+                        lng: 127.1288287,
                         stationId: "228001980"
                     }
                 ];
@@ -377,7 +378,7 @@
                     { building_id: 11, name: "무용관", lat: 37.315938, lng: 127.127312, info: "무용관" },
                     { building_id: 12, name: "테니스장", lat: 37.320740, lng: 127.129829, info: "테니스장" },
                     { building_id: 13, name: "석주선기념박물관", lat: 37.319170, lng: 127.127908, info: "석주선 기념박물관" },
-                    { building_id: 14, name: "평화의광장", lat: 37.320171, lng: 127.129047, info: "평화의 광장" },
+                    { building_id: 14, name: "평화의광장", lat: 37.319976909, lng: 127.128975027, info: "평화의 광장" },
                     { building_id: 15, name: "법학관-대학원동", lat: 37.321223, lng: 127.129378, info: "법학관-대학원동" },
                     { building_id: 16, name: "상경관", lat: 37.322337, lng: 127.128947, info: "상경관" },
                     { building_id: 17, name: "사범관", lat: 37.322888, lng: 127.129074, info: "사범관" },
@@ -459,6 +460,9 @@
                     });
 
                     kakao.maps.event.addListener(buildingArea, 'click', function () {
+                        if (debugPositionMode) {
+                            return;
+                        }
                         showBuildingOverlay(building);
                     });
                 });

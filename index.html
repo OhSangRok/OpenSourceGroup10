@@ -256,6 +256,40 @@
         .favorite-list-btn.is-hidden {
             display: none;
         }
+        #search-box {
+            position: absolute;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+
+            width: 420px;
+            display: flex;
+            gap: 8px;
+
+            background: white;
+            padding: 10px 12px;
+            border-radius: 999px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+        }
+
+        #search-box input {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: 10px 12px;
+            font-size: 14px;
+        }
+
+        #search-box button {
+            border: none;
+            background: var(--primary-color);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-weight: 700;
+            cursor: pointer;
+        }
     </style>
 </head>
 
@@ -276,6 +310,16 @@
             <div id="auth-buttons">
                 <button onclick="location.href='/login'">로그인</button>
                 <button onclick="location.href='/register'">회원가입</button>
+            </div>
+
+            <div id="search-box">
+                 <input
+                       type="text"
+                       id="search-input"
+                       placeholder="건물명 또는 행사명 검색"
+                        onkeydown="handleSearchKey(event)"
+                   >
+                <button onclick="searchCampus()">검색</button>
             </div>
             <div id="map"></div>
             <button class="favorite-list-btn is-hidden" onclick="openFavoriteList()">★</button>
@@ -756,7 +800,7 @@
         }
 
         const kakaoScript = document.createElement('script');
-        kakaoScript.src = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=da25ccc59a0513e63b964a69e8709fd9&autoload=false";
+        kakaoScript.src = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=eadbe4f2b406ad6e7c84434ac727ec29&autoload=false";
         kakaoScript.onload = initMap;
         kakaoScript.onerror = function () {
             console.error("카카오 지도 SDK 로드 실패");
@@ -823,6 +867,63 @@
                 closeSidebar();
             }
         });
+
+        
+        function handleSearchKey(event) {
+            if (event.key === "Enter") {
+                searchCampus();
+            }
+        }
+
+        async function searchCampus() {
+           const keyword = document
+               .getElementById("search-input")
+               .value
+               .trim();
+
+            if (!keyword) {
+                alert("검색어를 입력해주세요.");
+                return;
+            }
+
+        const building = campusBuildings.find(function (item) {
+            return item.name.includes(keyword);
+        });
+
+        if (building) {
+            showBuildingOverlay(building);
+            return;
+        }
+
+        try {
+            const response = await fetch("/events");
+            const events = await response.json();
+
+            const event = events.find(function (item) {
+               return item.title.includes(keyword)
+                  || (item.description && item.description.includes(keyword));
+            });
+
+            if (!event) {
+                alert("검색 결과가 없습니다.");
+                return;
+            }
+
+            const eventBuilding = campusBuildings.find(function (item) {
+                return item.building_id === event.building_id;
+            });
+
+            if (!eventBuilding) {
+                alert("행사는 찾았지만 해당 건물 정보를 찾을 수 없습니다.");
+                return;
+            }
+
+            showBuildingOverlay(eventBuilding);
+        } catch (error) {
+            console.error(error);
+            alert("검색 중 오류가 발생했습니다.");
+        }
+    }
     </script>
 </body>
 

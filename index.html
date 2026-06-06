@@ -24,27 +24,53 @@
             overflow: hidden;
         }
 
-        /* 레이아웃 구성 */
         .wrapper {
-            display: flex;
+            position: relative;
             width: 100%;
             height: 100vh;
         }
 
-        /* 사이드바 디자인 */
         #sidebar {
-            width: 380px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 360px;
+            height: 100vh;
             background: white;
             z-index: 100;
             display: flex;
             flex-direction: column;
-            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.05);
+            box-shadow: 5px 0 18px rgba(0, 0, 0, 0.12);
+        }
+
+        #sidebar.hidden {
+            display: none;
+        }
+
+        #map-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
         }
 
         .header {
+            position: relative;
             padding: 30px 20px;
             background: var(--primary-color);
             color: white;
+        }
+
+        .sidebar-close-btn {
+            position: absolute;
+            top: 14px;
+            right: 16px;
+            border: none;
+            background: transparent;
+            color: white;
+            font-size: 26px;
+            font-weight: 700;
+            line-height: 1;
+            cursor: pointer;
         }
 
         .header h1 {
@@ -59,43 +85,25 @@
             opacity: 0.9;
         }
 
-        .search-container {
-            padding: 15px;
-            background: white;
-            border-bottom: 1px solid #eee;
-        }
-
-        .search-bar {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            background: #f1f3f5;
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 14px;
-        }
-
         .content {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
-            background: var(--bg-color);
+            padding: 18px;
+            background: #f5f7fb;
         }
 
-        /* 버스 정보 카드 디자인 */
         .bus-card {
             background: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: var(--card-shadow);
-            border-left: 5px solid var(--primary-color);
-            transition: transform 0.2s;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+            border-left: 4px solid var(--primary-color);
             cursor: pointer;
         }
 
         .bus-card:hover {
-            transform: translateY(-3px);
+            transform: translateY(-2px);
         }
 
         .bus-name {
@@ -120,19 +128,12 @@
             font-size: 15px;
         }
 
-        /* 지도 영역 */
-        #map-container {
-            flex: 1;
-            position: relative;
-        }
-
         #map {
             width: 100%;
             height: 100%;
         }
 
-        /* 플로팅 버튼 (지도 위 버튼) */
-        .my-location-btn {
+        .favorite-list-btn {
             position: absolute;
             bottom: 30px;
             right: 30px;
@@ -144,11 +145,8 @@
             border-radius: 50%;
             box-shadow: var(--card-shadow);
             cursor: pointer;
-            font-size: 20px;
-        }
-
-        #sidebar.hidden {
-            display: none;
+            font-size: 22px;
+            color: #f4c542;
         }
 
         #auth-buttons {
@@ -254,6 +252,44 @@
         .favorite-star.active {
             color: #f4c542;
         }
+
+        .favorite-list-btn.is-hidden {
+            display: none;
+        }
+        #search-box {
+            position: absolute;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+
+            width: 420px;
+            display: flex;
+            gap: 8px;
+
+            background: white;
+            padding: 10px 12px;
+            border-radius: 999px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+        }
+
+        #search-box input {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: 10px 12px;
+            font-size: 14px;
+        }
+
+        #search-box button {
+            border: none;
+            background: var(--primary-color);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-weight: 700;
+            cursor: pointer;
+        }
     </style>
 </head>
 
@@ -262,14 +298,10 @@
     <div class="wrapper">
         <div id="sidebar" class="hidden">
             <div class="header">
+                <button class="sidebar-close-btn" onclick="closeSidebar()">×</button>
                 <h1 id="sidebar-title">캠퍼스 버스 알리미</h1>
                 <p id="sidebar-subtitle">실시간 학교 버스 위치와 시간표</p>
             </div>
-
-            <div class="search-container">
-                <input type="text" class="search-bar" placeholder="정류장이나 버스 번호 검색...">
-            </div>
-
             <div class="content" id="timetable-panel">
             </div>
         </div>
@@ -279,8 +311,18 @@
                 <button onclick="location.href='/login'">로그인</button>
                 <button onclick="location.href='/register'">회원가입</button>
             </div>
+
+            <div id="search-box">
+                 <input
+                       type="text"
+                       id="search-input"
+                       placeholder="건물명 또는 행사명 검색"
+                        onkeydown="handleSearchKey(event)"
+                   >
+                <button onclick="searchCampus()">검색</button>
+            </div>
             <div id="map"></div>
-            <button class="my-location-btn">📍</button>
+            <button class="favorite-list-btn is-hidden" onclick="openFavoriteList()">★</button>
         </div>
     </div>
 
@@ -290,6 +332,9 @@
         var defaultCenter = null;
         var defaultLevel = null;
         var favoriteEventIds = new Set();
+        var campusBuildings = [];
+        var showBuildingOverlay = null;
+        var debugPositionMode = false;
 
         function initMap() {
             kakao.maps.load(function () {
@@ -314,34 +359,34 @@
 
                 var stations = [
                     {
-                        name: "단국대 정문",
-                        lat: 37.32334,
-                        lng: 127.1259,
-                        stationId: "228000713"
+                        name: "단국대정문",
+                        lat: 37.32333200,
+                        lng: 127.125957070,
+                        stationId: "228001978"
                     },
                     {
                         name: "단국대.치과병원",
-                        lat: 37.3223333,
-                        lng: 127.1254726,
-                        stationId: "228001994"
+                        lat: 37.32230530,
+                        lng: 127.12550406,
+                        stationId: "228001737"
                     },
                     {
-                        name: "단국대 인문관",
-                        lat: 37.322215,
-                        lng: 127.128292,
+                        name: "단국대.인문관",
+                        lat: 37.322212227,
+                        lng: 127.12827934,
                         stationId: "228001981"
                     },
                     {
                         name: "단국대.종합실험동",
-                        lat: 37.32023,
-                        lng: 127.125755,
+                        lat: 37.32023267,
+                        lng: 127.1257488,
                         stationId: "228001979"
                     },
                     {
-                        name: "단국대.평화의 광장",
-                        lat: 37.320164,
-                        lng: 127.128755,
-                        stationId: "228001990"
+                        name: "단국대.평화의광장",
+                        lat: 37.3202073,
+                        lng: 127.1288287,
+                        stationId: "228001980"
                     }
                 ];
 
@@ -377,7 +422,7 @@
                     { building_id: 11, name: "무용관", lat: 37.315938, lng: 127.127312, info: "무용관" },
                     { building_id: 12, name: "테니스장", lat: 37.320740, lng: 127.129829, info: "테니스장" },
                     { building_id: 13, name: "석주선기념박물관", lat: 37.319170, lng: 127.127908, info: "석주선 기념박물관" },
-                    { building_id: 14, name: "평화의광장", lat: 37.320171, lng: 127.129047, info: "평화의 광장" },
+                    { building_id: 14, name: "평화의광장", lat: 37.319976909, lng: 127.128975027, info: "평화의 광장" },
                     { building_id: 15, name: "법학관-대학원동", lat: 37.321223, lng: 127.129378, info: "법학관-대학원동" },
                     { building_id: 16, name: "상경관", lat: 37.322337, lng: 127.128947, info: "상경관" },
                     { building_id: 17, name: "사범관", lat: 37.322888, lng: 127.129074, info: "사범관" },
@@ -390,11 +435,63 @@
                     { building_id: 24, name: "제 1공학관", lat: 37.320960, lng: 127.125880, info: "제 1공학관" },
                     { building_id: 25, name: "제 2공학관", lat: 37.320592, lng: 127.126358, info: "제 2공학관" },
                     { building_id: 26, name: "제 3공학관", lat: 37.320274, lng: 127.126804, info: "제 3공학관" },
-                    { building_id: 27, name: "주차빌딩", lat: 37.320305, lng: 127.125004, info: "주차빌딩" },
+                    { building_id: 27, name: "혜당관", lat: 37.320437, lng: 127.128377, info: "혜당관" },
                     { building_id: 28, name: "종합실험동", lat: 37.319926, lng: 127.125567, info: "종합실험동" },
                     { building_id: 29, name: "국제관", lat: 37.319034, lng: 127.127181, info: "국제관" },
                     { building_id: 30, name: "노천마당", lat: 37.319758, lng: 127.127485, info: "노천마당" }
                 ];
+                campusBuildings = buildings;
+
+                showBuildingOverlay = async function (building) {
+                    const position = new kakao.maps.LatLng(building.lat, building.lng);
+
+                    map.setCenter(position);
+                    map.setLevel(2);
+
+                    if (currentOverlay) {
+                        currentOverlay.setMap(null);
+                    }
+
+                    const events = await loadBuildingEvents(building.building_id);
+                    favoriteEventIds = await loadFavoriteEventIds();
+
+                    let eventHtml = "";
+
+                    if (events.length === 0) {
+                        eventHtml = `<p class="overlay-empty">등록된 일정이 없습니다.</p>`;
+                    } else {
+                        events.forEach(function (event) {
+                            const isFavorite = favoriteEventIds.has(event.event_id);
+
+                            eventHtml += [
+                                `<div class="overlay-event">`,
+                                `<div class="event-title-row">`,
+                                `<strong>${event.title}</strong>`,
+                                `<button class="favorite-star ${isFavorite ? "active" : ""}" onclick="toggleFavorite(${event.event_id}, this)">★</button>`,
+                                `</div>`,
+                                `<p>${event.description || ""}</p>`,
+                                `<small>${formatDateTime(event.start_datetime)} ~ ${formatDateTime(event.end_datetime)}</small>`,
+                                `</div>`
+                            ].join("");
+                        });
+                    }
+
+                    const content = document.createElement("div");
+                    content.className = "building-overlay";
+                    content.innerHTML = [
+                        `<button class="overlay-close" onclick="closeBuildingOverlay()">×</button>`,
+                        `<h3>${building.name}</h3>`,
+                        eventHtml
+                    ].join("");
+
+                    currentOverlay = new kakao.maps.CustomOverlay({
+                        position: position,
+                        content: content,
+                        yAnchor: 1.15
+                    });
+
+                    currentOverlay.setMap(map);
+                }
 
                 buildings.forEach(function (building, index) {
                     var buildingArea = new kakao.maps.Circle({
@@ -406,56 +503,11 @@
                         map: map
                     });
 
-                    kakao.maps.event.addListener(buildingArea, 'click', async function () {
-                        const buildingId = index + 1;
-                        const position = new kakao.maps.LatLng(building.lat, building.lng);
-
-                        map.setCenter(position);
-                        map.setLevel(2);
-
-                        if (currentOverlay) {
-                            currentOverlay.setMap(null);
+                    kakao.maps.event.addListener(buildingArea, 'click', function () {
+                        if (debugPositionMode) {
+                            return;
                         }
-
-                        const events = await loadBuildingEvents(buildingId);
-                        favoriteEventIds = await loadFavoriteEventIds();
-
-                        let eventHtml = "";
-
-                        if (events.length === 0) {
-                            eventHtml = `<p class="overlay-empty">등록된 일정이 없습니다.</p>`;
-                        } else {
-                            events.forEach(function (event) {
-                                const isFavorite = favoriteEventIds.has(event.event_id);
-
-                                eventHtml += [
-                                    `<div class="overlay-event">`,
-                                    `<div class="event-title-row">`,
-                                    `<strong>${event.title}</strong>`,
-                                    `<button class="favorite-star ${isFavorite ? "active" : ""}" onclick="toggleFavorite(${event.event_id}, this)">★</button>`,
-                                    `</div>`,
-                                    `<p>${event.description || ""}</p>`,
-                                    `<small>${formatDateTime(event.start_datetime)} ~ ${formatDateTime(event.end_datetime)}</small>`,
-                                    `</div>`
-                                ].join("");
-                            });
-                        }
-
-                        const content = document.createElement("div");
-                        content.className = "building-overlay";
-                        content.innerHTML = [
-                            `<button class="overlay-close" onclick="closeBuildingOverlay()">×</button>`,
-                            `<h3>${building.name}</h3>`,
-                            eventHtml
-                        ].join("");
-
-                        currentOverlay = new kakao.maps.CustomOverlay({
-                            position: position,
-                            content: content,
-                            yAnchor: 1.15
-                        });
-
-                        currentOverlay.setMap(map);
+                        showBuildingOverlay(building);
                     });
                 });
             });
@@ -467,30 +519,49 @@
             const url =
                 `https://apis.data.go.kr/6410000/busarrivalservice/v2/getBusArrivalListv2?format=json&serviceKey=${serviceKey}&stationId=${station.stationId}`;
 
-            document.getElementById('timetable-panel').innerHTML = `
-            <p>버스 정보를 불러오는 중...</p>
-        `;
+            document.getElementById("sidebar").classList.remove("hidden");
+            document.getElementById("sidebar-title").innerText = "버스 도착 정보";
+            document.getElementById("sidebar-subtitle").innerText = station.name;
+            document.getElementById("timetable-panel").innerHTML = [
+                `<p>버스 정보를 불러오는 중...</p>`
+            ].join("");
 
             try {
                 const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error("버스 API 응답 오류");
+                }
+
                 const data = await response.json();
 
-                let list = data.response.msgBody.busArrivalList;
+                let list = data.response?.msgBody?.busArrivalList || [];
 
                 if (!Array.isArray(list)) {
                     list = [list];
                 }
 
-                let html = `
-                <button onclick="closeSidebar()"
-                    style="float:right; border:none; background:none; font-size:20px; cursor:pointer;">
-                    ×
-                </button>
+                console.log("버스 API 원본 응답:", data);
+                console.log("필터 전 버스 목록:", list);
 
-                <h3>${station.name}</h3>
-            `;
+                const allowedBusNumbers = ["24", "720-3", "502"];
+
+                list = list.filter(function (bus) {
+                    const routeName = String(bus.routeName || "").trim();
+                    return allowedBusNumbers.includes(routeName);
+                });
+
+                let html = [
+                    `<h3>${station.name}</h3>`
+                ].join("");
+
+                if (list.length === 0) {
+                    html += `<p class="overlay-empty">24, 720-3, 502번 도착 정보가 없습니다.</p>`;
+                }
 
                 list.forEach(function (bus) {
+                    const routeName = bus.routeName || "노선명 없음";
+
                     const time1 = bus.predictTime1 !== "" && bus.predictTime1 !== undefined
                         ? `${bus.predictTime1}분 후`
                         : "도착 정보 없음";
@@ -499,23 +570,22 @@
                         ? `${bus.predictTime2}분 후`
                         : "도착 정보 없음";
 
-                    html += `
-                    <div class="bus-card">
-                        <div class="bus-name">${bus.routeName || "노선명 없음"}</div>
-                        <div class="arrival-time">첫 번째 버스: ${time1}</div>
-                        <div class="arrival-time">두 번째 버스: ${time2}</div>
-                    </div>
-                `;
+                    html += [
+                        `<div class="bus-card">`,
+                        `<div class="bus-name">${routeName}</div>`,
+                        `<div class="arrival-time">첫 번째 버스: ${time1}</div>`,
+                        `<div class="arrival-time">두 번째 버스: ${time2}</div>`,
+                        `</div>`
+                    ].join("");
                 });
 
-                document.getElementById('sidebar-title').innerText = '버스 도착 정보';
-                document.getElementById('sidebar-subtitle').innerText = station.name;
-                document.getElementById('timetable-panel').innerHTML = html;
+                document.getElementById("timetable-panel").innerHTML = html;
             } catch (error) {
                 console.error(error);
-                document.getElementById('timetable-panel').innerHTML = `
-                <p>버스 정보를 불러오지 못했습니다.</p>
-            `;
+
+                document.getElementById("timetable-panel").innerHTML = [
+                    `<p class="overlay-empty">버스 정보를 불러오지 못했습니다.</p>`
+                ].join("");
             }
         }
 
@@ -602,6 +672,113 @@
             }
         }
 
+        async function openFavoriteList() {
+            const token = localStorage.getItem("access_token");
+
+            if (!token) {
+                location.href = "/login";
+                return;
+            }
+
+            try {
+                const response = await fetch("/favorites", {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    alert("즐겨찾기 목록을 불러오지 못했습니다.");
+                    return;
+                }
+
+                const favorites = await response.json();
+
+                document.getElementById("sidebar").classList.remove("hidden");
+                document.getElementById("sidebar-title").innerText = "내 즐겨찾기";
+                document.getElementById("sidebar-subtitle").innerText = "저장한 행사 일정";
+
+                let favoriteHtml = "";
+
+                if (favorites.length === 0) {
+                    favoriteHtml = `<p class="overlay-empty">즐겨찾기한 일정이 없습니다.</p>`;
+                } else {
+                    favorites.forEach(function (event) {
+                        favoriteHtml += [
+                            `<div class="bus-card" onclick="moveToFavoriteBuilding(${event.building_id})">`,
+                            `<div class="event-title-row">`,
+                            `<div class="bus-name">${event.title}</div>`,
+                            `<button class="favorite-star active" onclick="event.stopPropagation(); removeFavoriteFromList(${event.event_id}, this)">★</button>`,
+                            `</div>`,
+                            `<div class="bus-status">${event.description || ""}</div>`,
+                            `<div class="arrival-time">${formatDateTime(event.start_datetime)} ~ ${formatDateTime(event.end_datetime)}</div>`,
+                            `</div>`
+                        ].join("");
+                    });
+                }
+
+                document.getElementById("timetable-panel").innerHTML = favoriteHtml;
+            } catch (error) {
+                console.error(error);
+                alert("즐겨찾기 목록 요청에 실패했습니다.");
+            }
+        }
+
+        function moveToFavoriteBuilding(buildingId) {
+            const building = campusBuildings.find(function (item) {
+                return item.building_id === buildingId;
+            });
+
+            if (!building || !map) {
+                return;
+            }
+
+            closeSidebar();
+
+            showBuildingOverlay(building);
+        }
+
+        async function removeFavoriteFromList(eventId, button) {
+            const token = localStorage.getItem("access_token");
+
+            if (!token) {
+                alert("로그인 후 이용해주세요.");
+                location.href = "/login";
+                return;
+            }
+
+            try {
+                const response = await fetch(`/favorites/${eventId}`, {
+                    method: "DELETE",
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    alert("즐겨찾기 삭제에 실패했습니다.");
+                    return;
+                }
+
+                favoriteEventIds.delete(eventId);
+
+                const eventBox = button.closest(".bus-card");
+
+                if (eventBox) {
+                    eventBox.remove();
+                }
+
+                const panel = document.getElementById("timetable-panel");
+
+                if (panel && panel.children.length === 0) {
+                    panel.innerHTML = `<p class="overlay-empty">즐겨찾기한 일정이 없습니다.</p>`;
+                }
+            } catch (error) {
+                console.error(error);
+                alert("즐겨찾기 삭제 요청에 실패했습니다.");
+            }
+        }
+
         function closeBuildingOverlay() {
             if (currentOverlay) {
                 currentOverlay.setMap(null);
@@ -623,7 +800,7 @@
         }
 
         const kakaoScript = document.createElement('script');
-        kakaoScript.src = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=da25ccc59a0513e63b964a69e8709fd9&autoload=false";
+        kakaoScript.src = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=eadbe4f2b406ad6e7c84434ac727ec29&autoload=false";
         kakaoScript.onload = initMap;
         kakaoScript.onerror = function () {
             console.error("카카오 지도 SDK 로드 실패");
@@ -639,33 +816,114 @@
             const token = localStorage.getItem("access_token");
             const name = localStorage.getItem("name");
             const authButtons = document.getElementById("auth-buttons");
+            const favoriteListButton = document.querySelector(".favorite-list-btn");
 
             if (!authButtons) {
                 return;
             }
 
             if (token && name) {
-                authButtons.innerHTML = `
-            <span>${name}님</span>
-            <button onclick="logout()">로그아웃</button>
-        `;
+                authButtons.innerHTML = [
+                    `<span>${name}님</span>`,
+                    `<button onclick="logout()">로그아웃</button>`
+                ].join("");
+
+                if (favoriteListButton) {
+                    favoriteListButton.classList.remove("is-hidden");
+                }
             } else {
-                authButtons.innerHTML = `
-            <button onclick="location.href='/login'">로그인</button>
-            <button onclick="location.href='/register'">회원가입</button>
-        `;
+                authButtons.innerHTML = [
+                    `<button onclick="location.href='/login'">로그인</button>`,
+                    `<button onclick="location.href='/register'">회원가입</button>`
+                ].join("");
+
+                if (favoriteListButton) {
+                    favoriteListButton.classList.add("is-hidden");
+                }
             }
         }
 
         function logout() {
             localStorage.removeItem("access_token");
             localStorage.removeItem("name");
+
+            favoriteEventIds = new Set();
+
+            document.querySelectorAll(".favorite-star").forEach(function (button) {
+                button.classList.remove("active");
+            });
+
+            closeBuildingOverlay();
             updateAuthButtons();
         }
 
         window.addEventListener("DOMContentLoaded", function () {
             updateAuthButtons();
         });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                closeBuildingOverlay();
+                closeSidebar();
+            }
+        });
+
+        
+        function handleSearchKey(event) {
+            if (event.key === "Enter") {
+                searchCampus();
+            }
+        }
+
+        async function searchCampus() {
+           const keyword = document
+               .getElementById("search-input")
+               .value
+               .trim();
+
+            if (!keyword) {
+                alert("검색어를 입력해주세요.");
+                return;
+            }
+
+        const building = campusBuildings.find(function (item) {
+            return item.name.includes(keyword);
+        });
+
+        if (building) {
+            showBuildingOverlay(building);
+            return;
+        }
+
+        try {
+            const response = await fetch("/events");
+            const events = await response.json();
+
+            const event = events.find(function (item) {
+               return item.title.includes(keyword)
+                  || (item.description && item.description.includes(keyword));
+            });
+
+            if (!event) {
+                alert("검색 결과가 없습니다.");
+                return;
+            }
+
+            const eventBuilding = campusBuildings.find(function (item) {
+                return item.building_id === event.building_id;
+            });
+
+            if (!eventBuilding) {
+                alert("행사는 찾았지만 해당 건물 정보를 찾을 수 없습니다.");
+                return;
+            }
+
+            showBuildingOverlay(eventBuilding);
+        } catch (error) {
+            console.error(error);
+            alert("검색 중 오류가 발생했습니다.");
+        }
+    }
     </script>
 </body>
 

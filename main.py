@@ -5,6 +5,7 @@ import mysql.connector
 import bcrypt
 from jose import jwt
 from datetime import datetime, timedelta
+from fastapi.responses import FileResponse
 
 app = FastAPI()
 security = HTTPBearer()
@@ -17,7 +18,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 # MySQL 연결
 db = mysql.connector.connect(
     host="localhost",
-    user="root",
+    user="school_app",
     password="4321",
     database="school_event_db"
 )
@@ -110,11 +111,36 @@ def verify_admin(student_id: str = Depends(verify_token)):
 # 기본 페이지
 @app.get("/")
 def home():
-    return {"message": "백엔드 서버 실행 성공"}
+    return FileResponse("index.html")
+
+# 로그인 페이지
+@app.get("/login")
+def login_page():
+    return FileResponse("login.html")
+
+
+# 회원가입 페이지
+@app.get("/register")
+def register_page():
+    return FileResponse("register.html")
 
 # 회원가입 API
 @app.post("/register")
 def register(user: UserRegister):
+
+    if (
+        not user.student_id.strip()
+        or not user.password.strip()
+        or not user.name.strip()
+        or not user.college.strip()
+        or (user.college != "퇴계혁신칼리지" and not user.department.strip())
+        or user.grade < 1
+        or user.grade > 4
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="모든 항목을 올바르게 입력해주세요."
+        )
 
     hashed_password = bcrypt.hashpw(
         user.password.encode("utf-8"),

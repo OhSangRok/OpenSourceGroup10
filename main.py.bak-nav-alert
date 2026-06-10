@@ -155,17 +155,6 @@ def chat_with_rag(chat: ChatRequest):
 def home():
     return FileResponse("index.html")
 
-
-# 챗봇 페이지
-@app.get("/chatbot")
-def chatbot_page():
-    return FileResponse("chatbot.html")
-
-# 이벤트 페이지
-@app.get("/event")
-def event_page():
-    return FileResponse("event.html")
-
 # 로그인 페이지
 @app.get("/login")
 def login_page():
@@ -330,38 +319,6 @@ def get_events():
 
     cursor.execute(sql)
 
-    results = cursor.fetchall()
-
-    events = []
-
-    for row in results:
-        events.append({
-            "event_id": row[0],
-            "title": row[1],
-            "description": row[2],
-            "building_id": row[3],
-            "college": row[4],
-            "department": row[5],
-            "start_datetime": row[6],
-            "end_datetime": row[7]
-        })
-
-    return events
-
-
-# 오늘 진행되는 행사 조회 API
-@app.get("/events/today")
-def get_today_events():
-
-    sql = """
-    SELECT *
-    FROM events
-    WHERE DATE(start_datetime) = CURDATE()
-       OR (start_datetime <= NOW() AND end_datetime >= NOW())
-    ORDER BY start_datetime ASC
-    """
-
-    cursor.execute(sql)
     results = cursor.fetchall()
 
     events = []

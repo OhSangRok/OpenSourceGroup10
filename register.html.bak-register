@@ -145,7 +145,6 @@
     <script>
         const departmentsByCollege = {
             "문과대학": ["국어국문학과", "사학과", "철학과", "영미인문학과"],
-            "법과대학": ["법학과"],
             "사회과학대학": ["정치외교학과", "행정학과", "도시지역계획학전공", "부동산학전공", "저널리즘전공", "영상콘텐츠전공", "광고홍보전공", "상담학과"],
             "경영경제대학": ["경제학과", "무역학과", "경영학전공", "회계학전공", "산업경영학과(야간)"],
             "공과대학": ["전자전기공학과", "융합반도체공학과", "고분자공학전공", "파이버융합소재공학전공", "토목환경공학과", "기계공학과", "화학공학과", "건축학전공", "건축공학전공"],
@@ -215,36 +214,29 @@
                 return;
             }
 
-            try {
-                const response = await fetch("/register", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        student_id: student_id,
-                        password: password,
-                        name: name,
-                        college: college,
-                        department: department,
-                        grade: grade
-                    })
-                });
+            const response = await fetch("/register", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    student_id: student_id,
+                    password: password,
+                    name: name,
+                    college: college,
+                    department: department,
+                    grade: grade
+                })
+            });
 
-                const data = await response.json();
-                const message = data.message || data.detail || "회원가입에 실패했습니다.";
+            const data = await response.json();
 
-                document.getElementById("message").innerText = Array.isArray(message)
-                    ? message.map(function (item) { return item.msg; }).join("\n")
-                    : message;
+            document.getElementById("message").innerText =
+                data.message || data.detail;
 
-                if (response.ok && data.message === "회원가입 성공!") {
-                    alert("회원가입 성공! 로그인 페이지로 이동합니다.");
-                    location.href = "/login";
-                }
-            } catch (error) {
-                console.error(error);
-                document.getElementById("message").innerText = "회원가입 요청에 실패했습니다.";
+            if (data.message === "회원가입 성공!") {
+                alert("회원가입 성공! 로그인 페이지로 이동합니다.");
+                location.href = "/login";
             }
         }
 

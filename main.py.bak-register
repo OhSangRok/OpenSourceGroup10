@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import mysql.connector
-from mysql.connector import Error, IntegrityError
 import bcrypt
 from jose import jwt
 from datetime import datetime, timedelta
@@ -155,17 +154,6 @@ def chat_with_rag(chat: ChatRequest):
 def home():
     return FileResponse("index.html")
 
-
-# 챗봇 페이지
-@app.get("/chatbot")
-def chatbot_page():
-    return FileResponse("chatbot.html")
-
-# 이벤트 페이지
-@app.get("/event")
-def event_page():
-    return FileResponse("event.html")
-
 # 로그인 페이지
 @app.get("/login")
 def login_page():
@@ -215,21 +203,8 @@ def register(user: UserRegister):
         user.grade
     )
 
-    try:
-        cursor.execute(sql, values)
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="이미 가입된 학번입니다."
-        )
-    except Error as error:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"회원가입 처리 중 DB 오류가 발생했습니다: {error}"
-        )
+    cursor.execute(sql, values)
+    db.commit()
 
     return {"message": "회원가입 성공!"}
 
@@ -330,38 +305,6 @@ def get_events():
 
     cursor.execute(sql)
 
-    results = cursor.fetchall()
-
-    events = []
-
-    for row in results:
-        events.append({
-            "event_id": row[0],
-            "title": row[1],
-            "description": row[2],
-            "building_id": row[3],
-            "college": row[4],
-            "department": row[5],
-            "start_datetime": row[6],
-            "end_datetime": row[7]
-        })
-
-    return events
-
-
-# 오늘 진행되는 행사 조회 API
-@app.get("/events/today")
-def get_today_events():
-
-    sql = """
-    SELECT *
-    FROM events
-    WHERE DATE(start_datetime) = CURDATE()
-       OR (start_datetime <= NOW() AND end_datetime >= NOW())
-    ORDER BY start_datetime ASC
-    """
-
-    cursor.execute(sql)
     results = cursor.fetchall()
 
     events = []

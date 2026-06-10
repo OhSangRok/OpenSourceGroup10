@@ -2,15 +2,10 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import mysql.connector
-from mysql.connector import Error, IntegrityError
 import bcrypt
 from jose import jwt
 from datetime import datetime, timedelta
 from fastapi.responses import FileResponse
-import os
-import json
-import urllib.error
-import urllib.request
 
 app = FastAPI()
 security = HTTPBearer()
@@ -53,10 +48,6 @@ class EventCreate(BaseModel):
     department: str
     start_datetime: datetime
     end_datetime: datetime
-
-# 챗봇 질문 데이터 형식
-class ChatRequest(BaseModel):
-    question: str
 
 # JWT 토큰 생성 함수
 def create_access_token(data: dict):
@@ -117,54 +108,10 @@ def verify_admin(student_id: str = Depends(verify_token)):
 
     return student_id
 
-
-# RAG 챗봇 API
-@app.post("/api/chat")
-def chat_with_rag(chat: ChatRequest):
-    question = chat.question.strip()
-
-    if not question:
-        raise HTTPException(status_code=400, detail="질문을 입력해주세요.")
-
-    rag_server_url = os.getenv("RAG_SERVER_URL", "http://127.0.0.1:8001/answer")
-    payload = json.dumps({"question": question}).encode("utf-8")
-
-    request = urllib.request.Request(
-        rag_server_url,
-        data=payload,
-        headers={"Content-Type": "application/json; charset=utf-8"},
-        method="POST"
-    )
-
-    try:
-        with urllib.request.urlopen(request, timeout=180) as response:
-            data = json.loads(response.read().decode("utf-8"))
-            return {
-                "question": question,
-                "answer": data.get("answer", "응답이 없습니다."),
-                "sources": data.get("sources", [])
-            }
-    except urllib.error.URLError as error:
-        raise HTTPException(
-            status_code=502,
-            detail=f"RAG 서버에 연결하지 못했습니다: {error}"
-        )
-
 # 기본 페이지
 @app.get("/")
 def home():
     return FileResponse("index.html")
-
-
-# 챗봇 페이지
-@app.get("/chatbot")
-def chatbot_page():
-    return FileResponse("chatbot.html")
-
-# 이벤트 페이지
-@app.get("/event")
-def event_page():
-    return FileResponse("event.html")
 
 # 로그인 페이지
 @app.get("/login")
@@ -215,21 +162,8 @@ def register(user: UserRegister):
         user.grade
     )
 
-    try:
-        cursor.execute(sql, values)
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="이미 가입된 학번입니다."
-        )
-    except Error as error:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"회원가입 처리 중 DB 오류가 발생했습니다: {error}"
-        )
+    cursor.execute(sql, values)
+    db.commit()
 
     return {"message": "회원가입 성공!"}
 
@@ -330,38 +264,6 @@ def get_events():
 
     cursor.execute(sql)
 
-    results = cursor.fetchall()
-
-    events = []
-
-    for row in results:
-        events.append({
-            "event_id": row[0],
-            "title": row[1],
-            "description": row[2],
-            "building_id": row[3],
-            "college": row[4],
-            "department": row[5],
-            "start_datetime": row[6],
-            "end_datetime": row[7]
-        })
-
-    return events
-
-
-# 오늘 진행되는 행사 조회 API
-@app.get("/events/today")
-def get_today_events():
-
-    sql = """
-    SELECT *
-    FROM events
-    WHERE DATE(start_datetime) = CURDATE()
-       OR (start_datetime <= NOW() AND end_datetime >= NOW())
-    ORDER BY start_datetime ASC
-    """
-
-    cursor.execute(sql)
     results = cursor.fetchall()
 
     events = []

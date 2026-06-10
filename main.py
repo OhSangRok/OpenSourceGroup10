@@ -356,8 +356,8 @@ def get_today_events():
     sql = """
     SELECT *
     FROM events
-    WHERE DATE(start_datetime) = CURDATE()
-       OR (start_datetime <= NOW() AND end_datetime >= NOW())
+    WHERE DATE(start_datetime) <= CURDATE()
+      AND DATE(end_datetime) >= CURDATE()
     ORDER BY start_datetime ASC
     """
 

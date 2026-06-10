@@ -6,36 +6,240 @@
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         :root { --primary-color: #4A90E2; --bg-color: #f5f7fb; --text-color: #172033; }
-        body { margin: 0; min-height: 100vh; font-family: Pretendard, Arial, sans-serif; background: var(--bg-color); color: var(--text-color); }
-        #app-nav { position: fixed; top: 0; left: 0; z-index: 120; width: 292px; height: 100vh; background: rgba(255,255,255,0.97); box-shadow: 5px 0 18px rgba(15,23,42,0.10); padding: 30px 14px 18px; box-sizing: border-box; display: flex; flex-direction: column; }
-        .nav-brand { margin: 0 0 30px 8px; color: #2563eb; font-size: 24px; font-weight: 800; letter-spacing: 0; }
+        body { margin: 0; min-height: 100vh; font-family: 'Pretendard', sans-serif; background: var(--bg-color); color: var(--text-color); }
+
+        #app-nav { position: fixed; top: 0; left: 0; z-index: 120; width: 292px; height: 100vh; background: rgba(255, 255, 255, 0.97); box-shadow: 5px 0 18px rgba(15, 23, 42, 0.10); padding: 30px 14px 18px; box-sizing: border-box; display: flex; flex-direction: column; }
+        .nav-brand { margin: 0 0 30px 8px; color: #2563eb; font-size: 24px; font-weight: 800; letter-spacing: 0; line-height: 1.2; font-family: 'Pretendard', sans-serif; }
         .nav-menu { display: grid; gap: 8px; }
-        .nav-item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 50px; border: none; background: transparent; color: #64748b; padding: 0 14px; border-radius: 8px; font-size: 16px; font-weight: 800; cursor: pointer; text-align: left; text-decoration: none; box-sizing: border-box; }
+        .nav-item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 50px; border: none; background: transparent; color: #64748b; padding: 0 14px; border-radius: 8px; font-size: 16px; font-weight: 800; cursor: pointer; text-align: left; text-decoration: none; box-sizing: border-box; font-family: inherit; }
         .nav-item:hover, .nav-item.active { background: #eaf2ff; color: #2563eb; }
         .nav-icon { width: 24px; text-align: center; font-size: 19px; line-height: 1; }
         .nav-auth { margin-top: auto; display: grid; gap: 8px; padding: 12px 8px 0; border-top: 1px solid #e5e7eb; }
-        .nav-auth button { border: none; background: #eef4fb; color: #24425f; padding: 11px 12px; border-radius: 8px; font-weight: 800; cursor: pointer; text-align: left; }
+        .nav-auth button { border: none; background: #eef4fb; color: #24425f; padding: 11px 12px; border-radius: 8px; font-weight: 800; cursor: pointer; text-align: left; font-family: inherit; }
         .nav-auth button:hover { background: var(--primary-color); color: white; }
-        .account-toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: none; background: transparent; color: #111827; padding: 8px 4px; font-weight: 800; cursor: pointer; }
-        .account-avatar { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #eef2ff; color: #4f46e5; font-weight: 800; }
-        .account-name { flex: 1; text-align: left; }
-        .account-caret { color: #4f46e5; font-size: 30px; line-height: 1; transition: transform 0.18s ease; }
-        .account-caret.open { transform: rotate(-90deg); }
+        .account-toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: none; background: transparent; color: #111827; padding: 8px 12px; font-weight: 800; cursor: pointer; font-family: inherit; box-shadow: none; outline: none; }
+        .nav-auth .account-toggle, .nav-auth .account-toggle:hover { background: transparent; color: #111827; box-shadow: none; outline: none; }
+        .account-avatar { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #eef2ff; color: #4f46e5; font-weight: 800; padding: 0; }
+        .account-name { flex: 1; text-align: left; color: #111827; padding: 0; }
+        .account-caret { display: inline-flex; align-items: center; justify-content: flex-end; min-width: 46px; color: #4f46e5; font-size: 24px; line-height: 1; padding: 0; }
         .logout-menu { display: none; margin-bottom: 8px; padding: 10px 12px; border-radius: 8px; background: white; box-shadow: 0 8px 20px rgba(15,23,42,0.12); color: #ef4444; font-weight: 800; cursor: pointer; }
         .logout-menu.open { display: block; }
+
         .page { margin-left: 292px; min-height: 100vh; padding: 34px 40px 60px; box-sizing: border-box; }
         .page-inner { width: min(920px, 100%); margin: 0 auto; }
         h1 { margin: 0 0 20px; font-size: 34px; color: #172033; }
         .panel { background: white; border-radius: 14px; padding: 22px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); border: 1px solid #e5e7eb; }
         .form { display: flex; gap: 10px; }
         input { flex: 1; min-width: 0; border: 1px solid #d6dde6; border-radius: 10px; padding: 14px; font-size: 16px; }
-        .form button { border: none; border-radius: 10px; background: var(--primary-color); color: white; padding: 0 20px; font-size: 16px; font-weight: 800; cursor: pointer; }
+        .form button { border: none; border-radius: 10px; background: var(--primary-color); color: white; padding: 0 20px; font-size: 16px; font-weight: 800; cursor: pointer; font-family: inherit; }
         .answer { margin-top: 18px; white-space: pre-wrap; line-height: 1.7; font-size: 15px; }
         .sources { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
         .sources a { display: block; margin-top: 7px; color: #2563eb; font-weight: 800; text-decoration: none; word-break: keep-all; }
+        .event-list { display: grid; gap: 12px; margin-top: 16px; }
+        .event-card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; box-shadow: 0 6px 16px rgba(15,23,42,0.06); }
+        .event-card h3 { margin: 0; color: #172033; font-size: 18px; }
+        .event-card p { margin: 8px 0 0; color: #64748b; line-height: 1.5; }
+        .event-time { margin-top: 10px; color: #2563eb; font-weight: 800; font-size: 14px; }
+
+
+        /* Unified sidebar override */
+        body {
+            font-family: 'Pretendard', sans-serif !important;
+        }
+
+        #app-nav {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 292px !important;
+            height: 100vh !important;
+            z-index: 120 !important;
+            box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: column !important;
+            padding: 30px 14px 18px !important;
+            background: rgba(255, 255, 255, 0.97) !important;
+            box-shadow: 5px 0 18px rgba(15, 23, 42, 0.10) !important;
+        }
+
+        .nav-brand {
+            margin: 0 0 30px 8px !important;
+            color: #2563eb !important;
+            font-family: 'Pretendard', sans-serif !important;
+            font-size: 24px !important;
+            font-weight: 800 !important;
+            line-height: 1.2 !important;
+            letter-spacing: 0 !important;
+        }
+
+        .nav-menu {
+            display: grid !important;
+            gap: 8px !important;
+        }
+
+        .nav-item {
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            width: 100% !important;
+            min-height: 50px !important;
+            box-sizing: border-box !important;
+            border: none !important;
+            border-radius: 8px !important;
+            background: transparent !important;
+            color: #64748b !important;
+            padding: 0 14px !important;
+            font-family: 'Pretendard', sans-serif !important;
+            font-size: 16px !important;
+            font-weight: 800 !important;
+            line-height: 1 !important;
+            text-align: left !important;
+            text-decoration: none !important;
+            cursor: pointer !important;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background: #eaf2ff !important;
+            color: #2563eb !important;
+        }
+
+        .nav-icon {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 24px !important;
+            min-width: 24px !important;
+            height: 24px !important;
+            color: currentColor !important;
+            font-size: 19px !important;
+            line-height: 1 !important;
+            text-align: center !important;
+        }
+
+        .nav-auth {
+            margin-top: auto !important;
+            display: grid !important;
+            gap: 8px !important;
+            padding: 12px 8px 0 !important;
+            border-top: 1px solid #e5e7eb !important;
+        }
+
+        .nav-auth > button:not(.account-toggle) {
+            width: 100% !important;
+            box-sizing: border-box !important;
+            border: none !important;
+            border-radius: 8px !important;
+            background: #eef4fb !important;
+            color: #24425f !important;
+            padding: 11px 12px !important;
+            font-family: 'Pretendard', sans-serif !important;
+            font-weight: 800 !important;
+            text-align: left !important;
+            cursor: pointer !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .account-toggle,
+        .nav-auth .account-toggle,
+        .nav-auth .account-toggle:hover {
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            min-height: 58px !important;
+            border: none !important;
+            border-radius: 8px !important;
+            background: transparent !important;
+            color: #111827 !important;
+            padding: 8px 12px !important;
+            font-family: 'Pretendard', sans-serif !important;
+            font-weight: 800 !important;
+            cursor: pointer !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .account-avatar,
+        .nav-auth .account-avatar {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 36px !important;
+            min-width: 36px !important;
+            height: 36px !important;
+            border-radius: 50% !important;
+            background: #eef2ff !important;
+            color: #4f46e5 !important;
+            padding: 0 !important;
+            font-weight: 800 !important;
+        }
+
+        .account-name,
+        .nav-auth .account-name {
+            flex: 1 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            min-width: 0 !important;
+            color: #111827 !important;
+            padding: 0 !important;
+            text-align: left !important;
+            white-space: nowrap !important;
+        }
+
+        .account-caret,
+        .nav-auth .account-caret {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 52px !important;
+            min-width: 52px !important;
+            height: 36px !important;
+            padding: 0 !important;
+            color: #4f46e5 !important;
+            font-size: 0 !important;
+            line-height: 1 !important;
+        }
+
+        .account-caret::before,
+        .nav-auth .account-caret::before {
+            content: '' !important;
+            width: 8px !important;
+            height: 8px !important;
+            border-right: 2px solid currentColor !important;
+            border-bottom: 2px solid currentColor !important;
+            transform: rotate(225deg) !important;
+            transform-origin: center !important;
+        }
+
+        .account-caret.is-open::before,
+        .nav-auth .account-caret.is-open::before {
+            transform: rotate(45deg) !important;
+        }
+
+        .logout-menu {
+            display: none !important;
+            margin-bottom: 8px !important;
+            padding: 10px 12px !important;
+            border-radius: 8px !important;
+            background: #ffffff !important;
+            color: #ef4444 !important;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12) !important;
+            font-family: 'Pretendard', sans-serif !important;
+            font-weight: 800 !important;
+            cursor: pointer !important;
+        }
+
+        .logout-menu.open {
+            display: block !important;
+        }
+
 </style>
 </head>
 <body>
+
     <aside id="app-nav">
         <h2 class="nav-brand">DKU Campus</h2>
         <div class="nav-menu">
@@ -51,35 +255,40 @@
         <div class="page-inner">
             <h1>Event</h1>
             <section class="panel">
-                <div class="form">
-                    <input id="question" value="현재 진행 중이거나 신청 가능한 학사일정, 공모전, 모집 공지를 요약해서 알려줘" onkeydown="if(event.key==='Enter') ask()">
-                    <button onclick="ask()">질문</button>
-                </div>
-                <div class="answer" id="answer">현재 진행 중이거나 신청 가능한 학사일정, 공모전, 모집 공지를 불러오는 중...</div>
+                <div class="answer" id="answer">오늘 진행 중인 일정을 불러오는 중...</div>
+                <div class="event-list" id="event-list"></div>
             </section>
         </div>
     </main>
     <script>
         function escapeHtml(value) { return String(value || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
-        function removeSourceText(value) { const text = String(value || ''); const index = text.indexOf('참고 출처:'); return index === -1 ? text.trim() : text.slice(0, index).trim(); }
-        function render(data) {
+        function formatDateTime(value) { return value ? String(value).replace('T', ' ').slice(0, 16) : ''; }
+        async function loadTodayEvents() {
             const answer = document.getElementById('answer');
-            if (data.detail || data.error) { answer.textContent = data.detail || data.error; return; }
-            const body = escapeHtml(removeSourceText(data.answer || '응답이 없습니다.'));
-            const sources = Array.isArray(data.sources) ? data.sources : [];
-            const links = sources.filter(s => s && s.source_url).map((s, i) => '<a href="' + escapeHtml(s.source_url) + '" target="_blank" rel="noopener noreferrer">[' + (i + 1) + '] ' + escapeHtml(s.title || '출처') + '</a>').join('');
-            answer.innerHTML = body + (links ? '<div class="sources"><strong>참고 출처</strong>' + links + '</div>' : '');
-        }
-        async function ask() {
-            const input = document.getElementById('question');
-            const question = input.value.trim();
-            if (!question) { alert('질문을 입력해주세요.'); return; }
-            document.getElementById('answer').textContent = '답변 생성 중...';
+            const list = document.getElementById('event-list');
             try {
-                const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question }) });
-                render(await response.json());
-            } catch (error) { document.getElementById('answer').textContent = '챗봇 요청에 실패했습니다.'; }
+                const response = await fetch('/events/today');
+                const events = await response.json();
+                if (!Array.isArray(events) || events.length === 0) {
+                    answer.textContent = '오늘 날짜가 포함된 일정이 없습니다.';
+                    list.innerHTML = '';
+                    return;
+                }
+                answer.textContent = '오늘 날짜가 포함된 일정입니다.';
+                list.innerHTML = events.map(function (item) {
+                    return [
+                        '<article class="event-card">',
+                        '<h3>' + escapeHtml(item.title) + '</h3>',
+                        '<p>' + escapeHtml(item.description || '') + '</p>',
+                        '<div class="event-time">' + formatDateTime(item.start_datetime) + ' ~ ' + formatDateTime(item.end_datetime) + '</div>',
+                        '</article>'
+                    ].join('');
+                }).join('');
+            } catch (error) {
+                answer.textContent = '오늘 일정을 불러오지 못했습니다.';
+            }
         }
+
         function updateAuthButtons() {
             const token = localStorage.getItem('access_token');
             const name = localStorage.getItem('name');
@@ -91,7 +300,7 @@
                     '<button class="account-toggle" onclick="toggleAccountMenu()">',
                     '<span class="account-avatar">' + escapeHtml(name.slice(0, 1)) + '</span>',
                     '<span class="account-name">' + escapeHtml(name) + '</span>',
-                    '<span class="account-caret" id="account-caret">›</span>',
+                    '<span class="account-caret" id="account-caret"></span>',
                     '</button>'
                 ].join('');
             } else {
@@ -101,15 +310,17 @@
         function toggleAccountMenu() {
             const menu = document.getElementById('logout-menu');
             const caret = document.getElementById('account-caret');
-            if (menu) menu.classList.toggle('open');
-            if (caret) caret.classList.toggle('open');
+            if (!menu || !caret) return;
+            const isOpen = menu.classList.toggle('open');
+            caret.classList.toggle('is-open', isOpen);
         }
         function logout() {
             localStorage.removeItem('access_token');
             localStorage.removeItem('name');
             updateAuthButtons();
         }
-        window.addEventListener('DOMContentLoaded', function () { updateAuthButtons(); ask(); });
+
+        window.addEventListener('DOMContentLoaded', function () { updateAuthButtons(); loadTodayEvents(); });
     </script>
 </body>
 </html>

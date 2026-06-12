@@ -18,6 +18,7 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 MAX_CONTEXT_CHARS = int(os.getenv("MAX_CONTEXT_CHARS", "1800"))
 RAG_HOST = os.getenv("RAG_HOST", "127.0.0.1")
 RAG_PORT = int(os.getenv("RAG_PORT", "8001"))
+RAG_CANDIDATE_MULTIPLIER = int(os.getenv("RAG_CANDIDATE_MULTIPLIER", "20"))
 
 print(f"임베딩 모델 로딩: {EMBEDDING_MODEL}", flush=True)
 MODEL = SentenceTransformer(EMBEDDING_MODEL)
@@ -26,16 +27,53 @@ COLLECTION = CHROMA_CLIENT.get_collection(CHROMA_COLLECTION)
 print(f"RAG 서버 준비 완료: http://{RAG_HOST}:{RAG_PORT}", flush=True)
 
 
+def extract_query_year(query):
+    match = re.search(r"(20\d{2})\s*년?", query)
+    if match:
+        return match.group(1)
+    return ""
+
+
+def extract_date_value(*values):
+    text = "\n".join(str(value or "") for value in values)
+
+    patterns = [
+        r"(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})",
+        r"(20\d{2})\s*학년도",
+        r"(20\d{2})\s*년",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if not match:
+            continue
+
+        year = int(match.group(1))
+        month = int(match.group(2)) if len(match.groups()) >= 2 and match.group(2) else 1
+        day = int(match.group(3)) if len(match.groups()) >= 3 and match.group(3) else 1
+        return year * 10000 + month * 100 + day
+
+    return 0
+
+
+def text_has_year(text, year):
+    if not year:
+        return True
+    return year in (text or "")
+
+
 def search_context(query):
+    query_year = extract_query_year(query)
     query_embedding = MODEL.encode(
         [query],
         normalize_embeddings=True,
         show_progress_bar=False,
     )[0].tolist()
 
+    n_results = max(RAG_TOP_K, RAG_TOP_K * RAG_CANDIDATE_MULTIPLIER)
     result = COLLECTION.query(
         query_embeddings=[query_embedding],
-        n_results=RAG_TOP_K,
+        n_results=n_results,
         include=["documents", "metadatas", "distances"],
     )
 
@@ -45,8 +83,29 @@ def search_context(query):
 
     contexts = []
     used_chars = 0
+    candidates = list(zip(documents, metadatas, distances))
+    if query_year:
+        year_candidates = [
+            item
+            for item in candidates
+            if str(item[1].get("year", "")) == query_year or text_has_year(item[0], query_year) or text_has_year(item[1].get("title", ""), query_year)
+        ]
+        if year_candidates:
+            candidates = year_candidates
+    else:
+        candidates.sort(
+            key=lambda item: (
+                -extract_date_value(
+                    item[1].get("date", ""),
+                    item[1].get("year", ""),
+                    item[1].get("title", ""),
+                    item[0],
+                ),
+                item[2],
+            )
+        )
 
-    for index, (document, metadata, distance) in enumerate(zip(documents, metadatas, distances), start=1):
+    for index, (document, metadata, distance) in enumerate(candidates[:RAG_TOP_K], start=1):
         remaining = MAX_CONTEXT_CHARS - used_chars
         if remaining <= 0:
             break
@@ -62,6 +121,8 @@ def search_context(query):
                 "source_url": metadata.get("source_url", ""),
                 "document_id": metadata.get("document_id", ""),
                 "chunk_id": metadata.get("chunk_id", ""),
+                "date": metadata.get("date", ""),
+                "year": metadata.get("year", ""),
                 "content": text,
             }
         )
@@ -74,6 +135,7 @@ def build_prompt(query, contexts):
         [
             f"[근거 {item['index']}]\n"
             f"제목: {item['title']}\n"
+            f"날짜: {item.get('date', '')}\n"
             f"출처: {item['source_url']}\n"
             f"내용: {item['content']}"
             for item in contexts
@@ -84,6 +146,8 @@ def build_prompt(query, contexts):
 너는 단국대학교 학사/공지 안내 챗봇이다.
 아래 검색 근거만 사용해서 한국어로 답변해라.
 근거에 없는 내용은 추측하지 말고, 모르면 근거에서 확인되지 않는다고 말해라.
+사용자가 특정 연도를 물어본 경우, 그 연도와 다른 근거는 답변 근거로 사용하지 마라.
+사용자가 특정 연도를 말하지 않은 경우, 같은 주제의 근거 중 가장 최신 날짜의 근거를 우선해서 답변해라.
 날짜나 기간이 있으면 구체적으로 말해라.
 참고 출처나 URL은 답변에 직접 쓰지 마라. 출처는 시스템 코드가 따로 붙인다.
 

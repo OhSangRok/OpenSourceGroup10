@@ -35,11 +35,26 @@
         .answer { margin-top: 18px; white-space: pre-wrap; line-height: 1.7; font-size: 15px; }
         .sources { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
         .sources a { display: block; margin-top: 7px; color: #2563eb; font-weight: 800; text-decoration: none; word-break: keep-all; }
-        .event-list { display: grid; gap: 12px; margin-top: 16px; }
-        .event-card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; box-shadow: 0 6px 16px rgba(15,23,42,0.06); }
-        .event-card h3 { margin: 0; color: #172033; font-size: 18px; }
-        .event-card p { margin: 8px 0 0; color: #64748b; line-height: 1.5; }
-        .event-time { margin-top: 10px; color: #2563eb; font-weight: 800; font-size: 14px; }
+        .event-list { display: grid; gap: 14px; margin-top: 16px; }
+        .event-section { overflow: hidden; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 6px 16px rgba(15,23,42,0.06); }
+        .event-section > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 54px; padding: 0 16px; color: #172033; font-size: 17px; font-weight: 800; cursor: pointer; list-style: none; }
+        .event-section > summary::-webkit-details-marker { display: none; }
+        .event-section > summary::after { content: ''; width: 8px; height: 8px; border-right: 2px solid #2563eb; border-bottom: 2px solid #2563eb; transform: rotate(45deg); transition: transform .18s ease; }
+        .event-section[open] > summary::after { transform: rotate(225deg); }
+        .section-count { color: #64748b; font-size: 13px; font-weight: 800; }
+        .section-body { display: grid; gap: 0; border-top: 1px solid #e5e7eb; }
+        .event-card { border-top: 1px solid #eef2f7; }
+        .event-card:first-child { border-top: none; }
+        .event-card > summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; min-height: auto; padding: 14px 16px; font-size: 15px; cursor: pointer; list-style: none; }
+        .event-card > summary::-webkit-details-marker { display: none; }
+        .event-card > summary::after { content: ''; width: 7px; height: 7px; margin-top: 6px; border-right: 2px solid #94a3b8; border-bottom: 2px solid #94a3b8; transform: rotate(45deg); transition: transform .18s ease; }
+        .event-card[open] > summary::after { transform: rotate(225deg); }
+        .event-title { display: grid; gap: 7px; min-width: 0; }
+        .event-title strong { color: #172033; font-size: 16px; line-height: 1.35; word-break: keep-all; }
+        .event-time { color: #2563eb; font-weight: 800; font-size: 13px; }
+        .event-detail { padding: 0 16px 16px; color: #64748b; line-height: 1.55; font-size: 14px; }
+        .event-source { display: inline-flex; align-items: center; margin-top: 10px; min-height: 24px; color: #2563eb; font-size: 13px; font-weight: 800; text-decoration: none; }
+        .event-source:hover { color: #2563eb; }
 
 
         /* Unified sidebar override */
@@ -262,7 +277,71 @@
     </main>
     <script>
         function escapeHtml(value) { return String(value || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
-        function formatDateTime(value) { return value ? String(value).replace('T', ' ').slice(0, 16) : ''; }
+        function formatDate(value) {
+            if (!value) return '';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+            return (date.getMonth() + 1) + '월 ' + date.getDate() + '일';
+        }
+        function formatTodayTitle() {
+            const today = new Date();
+            return (today.getMonth() + 1) + '월 ' + today.getDate() + '일 일정입니다.';
+        }
+        function formatEventPeriod(item) {
+            const start = formatDate(item.start_datetime);
+            const end = formatDate(item.end_datetime);
+            if (!start && !end) return '';
+            if (start === end || !end) return start;
+            return start + ' ~ ' + end;
+        }
+        function groupEvents(events) {
+            const order = ['학사일정', '채용공지', '공지', '입찰공고', '행사'];
+            const groups = {};
+            events.forEach(function (item) {
+                const type = item.source_type || item.department || '행사';
+                if (!groups[type]) groups[type] = [];
+                groups[type].push(item);
+            });
+            return Object.keys(groups).sort(function (a, b) {
+                const ai = order.indexOf(a);
+                const bi = order.indexOf(b);
+                if (ai === -1 && bi === -1) return a.localeCompare(b, 'ko');
+                if (ai === -1) return 1;
+                if (bi === -1) return -1;
+                return ai - bi;
+            }).map(function (type) {
+                return { type: type, items: groups[type] };
+            });
+        }
+        function renderEventItem(item) {
+            const source = item.source_url
+                ? '<a class="event-source" href="' + escapeHtml(item.source_url) + '" target="_blank" rel="noopener">원문 보기</a>'
+                : '';
+            return [
+                '<details class="event-card">',
+                '<summary>',
+                '<span class="event-title">',
+                '<strong>' + escapeHtml(item.title) + '</strong>',
+                '<span class="event-time">' + escapeHtml(formatEventPeriod(item)) + '</span>',
+                '</span>',
+                '</summary>',
+                '<div class="event-detail">',
+                '<div>' + escapeHtml(item.description || '').replaceAll('\n', '<br>') + '</div>',
+                source,
+                '</div>',
+                '</details>'
+            ].join('');
+        }
+        function renderEventSection(group, index) {
+            return [
+                '<details class="event-section"' + (index === 0 ? ' open' : '') + '>',
+                '<summary><span>' + escapeHtml(group.type) + '</span><span class="section-count">' + group.items.length + '건</span></summary>',
+                '<div class="section-body">',
+                group.items.map(renderEventItem).join(''),
+                '</div>',
+                '</details>'
+            ].join('');
+        }
         async function loadTodayEvents() {
             const answer = document.getElementById('answer');
             const list = document.getElementById('event-list');
@@ -274,16 +353,8 @@
                     list.innerHTML = '';
                     return;
                 }
-                answer.textContent = '오늘 날짜가 포함된 일정입니다.';
-                list.innerHTML = events.map(function (item) {
-                    return [
-                        '<article class="event-card">',
-                        '<h3>' + escapeHtml(item.title) + '</h3>',
-                        '<p>' + escapeHtml(item.description || '') + '</p>',
-                        '<div class="event-time">' + formatDateTime(item.start_datetime) + ' ~ ' + formatDateTime(item.end_datetime) + '</div>',
-                        '</article>'
-                    ].join('');
-                }).join('');
+                answer.textContent = formatTodayTitle();
+                list.innerHTML = groupEvents(events).map(renderEventSection).join('');
             } catch (error) {
                 answer.textContent = '오늘 일정을 불러오지 못했습니다.';
             }

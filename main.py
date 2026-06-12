@@ -9,8 +9,12 @@ from datetime import datetime, timedelta
 from fastapi.responses import FileResponse
 import os
 import json
+import re
 import urllib.error
 import urllib.request
+from pathlib import Path
+
+import chromadb
 
 app = FastAPI()
 security = HTTPBearer()
@@ -29,6 +33,12 @@ db = mysql.connector.connect(
 )
 
 cursor = db.cursor()
+
+CHROMA_PATH = os.getenv(
+    "CHROMA_PATH",
+    str(Path(__file__).resolve().parent / "vector_store" / "chroma")
+)
+CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "academic_document_chunks")
 
 # 회원가입 데이터 형식
 class UserRegister(BaseModel):
@@ -164,7 +174,7 @@ def chatbot_page():
 # 이벤트 페이지
 @app.get("/event")
 def event_page():
-    return FileResponse("event.html")
+    return FileResponse("event.html", headers={"Cache-Control": "no-store"})
 
 # 로그인 페이지
 @app.get("/login")
@@ -349,6 +359,148 @@ def get_events():
     return events
 
 
+def parse_date_value(value, fallback_year=None):
+    if not value:
+        return None
+
+    text = str(value).strip()
+    match = re.search(r"(20\d{2})[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})", text)
+    if match:
+        try:
+            return datetime(
+                int(match.group(1)),
+                int(match.group(2)),
+                int(match.group(3))
+            ).date()
+        except ValueError:
+            return None
+
+    match = re.search(r"(\d{1,2})[.\-/월]\s*(\d{1,2})", text)
+    if match and fallback_year:
+        try:
+            return datetime(
+                int(fallback_year),
+                int(match.group(1)),
+                int(match.group(2))
+            ).date()
+        except ValueError:
+            return None
+
+    return None
+
+
+def extract_year_from_text(*values):
+    for value in values:
+        match = re.search(r"(20\d{2})", str(value or ""))
+        if match:
+            return int(match.group(1))
+    return datetime.now().year
+
+
+def extract_date_ranges(text, fallback_year):
+    ranges = []
+    if not text:
+        return ranges
+
+    range_pattern = re.compile(
+        r"((?:20\d{2}[.\-/년]\s*)?\d{1,2}[.\-/월]\s*\d{1,2})\s*(?:~|-|부터|～|∼)\s*((?:20\d{2}[.\-/년]\s*)?\d{1,2}[.\-/월]\s*\d{1,2})"
+    )
+    for start_text, end_text in range_pattern.findall(text):
+        start_date = parse_date_value(start_text, fallback_year)
+        end_date = parse_date_value(end_text, fallback_year)
+        if start_date and end_date:
+            if end_date < start_date:
+                end_date = datetime(end_date.year + 1, end_date.month, end_date.day).date()
+            ranges.append((start_date, end_date))
+
+    single_pattern = re.compile(r"(20\d{2}[.\-/년]\s*\d{1,2}[.\-/월]\s*\d{1,2})")
+    for date_text in single_pattern.findall(text):
+        date_value = parse_date_value(date_text, fallback_year)
+        if date_value:
+            ranges.append((date_value, date_value))
+
+    return ranges
+
+
+def source_type_from_metadata(metadata):
+    document_id = str(metadata.get("document_id", ""))
+    source_url = metadata.get("source_url", "")
+    kind = metadata.get("kind", "")
+
+    if kind == "academic_calendar":
+        return "학사일정"
+    if "apply_noti" in document_id or "apply_noti" in source_url:
+        return "채용공지"
+    if "bid" in document_id or "/bid" in source_url:
+        return "입찰공고"
+    return "공지"
+
+
+def build_event_description(document, title, metadata):
+    lines = []
+    for line in str(document or "").splitlines():
+        line = line.strip()
+        if not line:
+            lines.append("")
+            continue
+        if line == title:
+            continue
+        if metadata.get("kind") == "academic_calendar" and line.startswith("분류:"):
+            continue
+        lines.append(line)
+
+    return "\n".join(lines).strip()
+
+
+def get_today_vector_events(today):
+    try:
+        client = chromadb.PersistentClient(path=CHROMA_PATH)
+        collection = client.get_collection(CHROMA_COLLECTION)
+        data = collection.get(include=["documents", "metadatas"])
+    except Exception:
+        return []
+
+    vector_events = []
+    seen = set()
+
+    for item_id, document, metadata in zip(data.get("ids", []), data.get("documents", []), data.get("metadatas", [])):
+        title = metadata.get("title", "제목 없음")
+        source_url = metadata.get("source_url", "")
+        fallback_year = extract_year_from_text(metadata.get("year", ""), metadata.get("date", ""), title, document)
+
+        ranges = []
+        start_date = parse_date_value(metadata.get("date", ""), fallback_year)
+        end_date = parse_date_value(metadata.get("end_date", ""), fallback_year) or start_date
+        if start_date and end_date:
+            ranges.append((start_date, end_date))
+
+        ranges.extend(extract_date_ranges(document, fallback_year))
+        if not ranges:
+            continue
+
+        for start_date, end_date in ranges:
+            if start_date <= today <= end_date:
+                key = (title, source_url, start_date, end_date)
+                if key in seen:
+                    continue
+                seen.add(key)
+                vector_events.append({
+                    "event_id": f"vector-{item_id}",
+                    "title": title,
+                    "description": build_event_description(document, title, metadata),
+                    "building_id": None,
+                    "college": None,
+                    "department": source_type_from_metadata(metadata),
+                    "start_datetime": datetime.combine(start_date, datetime.min.time()),
+                    "end_datetime": datetime.combine(end_date, datetime.max.time()).replace(microsecond=0),
+                    "source_url": source_url,
+                    "source_type": source_type_from_metadata(metadata)
+                })
+                break
+
+    return vector_events
+
+
 # 오늘 진행되는 행사 조회 API
 @app.get("/events/today")
 def get_today_events():
@@ -377,6 +529,10 @@ def get_today_events():
             "start_datetime": row[6],
             "end_datetime": row[7]
         })
+
+    today = datetime.now().date()
+    events.extend(get_today_vector_events(today))
+    events.sort(key=lambda item: (item["start_datetime"], item["title"]))
 
     return events
 

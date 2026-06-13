@@ -24,13 +24,15 @@ SECRET_KEY = "my-secret-key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "school_app",
+    "password": "4321",
+    "database": "school_event_db"
+}
+
 # MySQL 연결
-db = mysql.connector.connect(
-    host="localhost",
-    user="school_app",
-    password="4321",
-    database="school_event_db"
-)
+db = mysql.connector.connect(**DB_CONFIG)
 
 cursor = db.cursor()
 
@@ -39,6 +41,17 @@ CHROMA_PATH = os.getenv(
     str(Path(__file__).resolve().parent / "vector_store" / "chroma")
 )
 CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "academic_document_chunks")
+
+
+def get_db_cursor():
+    global db
+
+    try:
+        db.ping(reconnect=True, attempts=3, delay=1)
+    except Error:
+        db = mysql.connector.connect(**DB_CONFIG)
+
+    return db.cursor()
 
 # 회원가입 데이터 형식
 class UserRegister(BaseModel):
@@ -312,9 +325,10 @@ def get_buildings():
     FROM buildings
     """
 
-    cursor.execute(sql)
-
-    results = cursor.fetchall()
+    db_cursor = get_db_cursor()
+    db_cursor.execute(sql)
+    results = db_cursor.fetchall()
+    db_cursor.close()
 
     buildings = []
 
@@ -513,8 +527,10 @@ def get_today_events():
     ORDER BY start_datetime ASC
     """
 
-    cursor.execute(sql)
-    results = cursor.fetchall()
+    db_cursor = get_db_cursor()
+    db_cursor.execute(sql)
+    results = db_cursor.fetchall()
+    db_cursor.close()
 
     events = []
 
@@ -546,9 +562,10 @@ def get_building_events(building_id: int):
     WHERE building_id = %s
     """
 
-    cursor.execute(sql, (building_id,))
-
-    results = cursor.fetchall()
+    db_cursor = get_db_cursor()
+    db_cursor.execute(sql, (building_id,))
+    results = db_cursor.fetchall()
+    db_cursor.close()
 
     events = []
 
@@ -582,12 +599,15 @@ def add_favorite(
     values = (student_id, event_id)
 
     try:
-        cursor.execute(sql, values)
+        db_cursor = get_db_cursor()
+        db_cursor.execute(sql, values)
         db.commit()
+        db_cursor.close()
 
         return {"message": "즐겨찾기 추가 성공!"}
 
     except:
+        db.rollback()
         raise HTTPException(
             status_code=400,
             detail="이미 즐겨찾기한 행사입니다."
@@ -613,8 +633,10 @@ def get_favorites(student_id: str = Depends(verify_token)):
     WHERE favorite_events.student_id = %s
     """
 
-    cursor.execute(sql, (student_id,))
-    results = cursor.fetchall()
+    db_cursor = get_db_cursor()
+    db_cursor.execute(sql, (student_id,))
+    results = db_cursor.fetchall()
+    db_cursor.close()
 
     favorites = []
 
@@ -652,8 +674,10 @@ def get_notifications(student_id: str = Depends(verify_token)):
     ORDER BY events.start_datetime ASC
     """
 
-    cursor.execute(sql, (student_id,))
-    results = cursor.fetchall()
+    db_cursor = get_db_cursor()
+    db_cursor.execute(sql, (student_id,))
+    results = db_cursor.fetchall()
+    db_cursor.close()
 
     notifications = []
 
@@ -682,10 +706,13 @@ def delete_favorite(
     AND event_id = %s
     """
 
-    cursor.execute(sql, (student_id, event_id))
+    db_cursor = get_db_cursor()
+    db_cursor.execute(sql, (student_id, event_id))
     db.commit()
+    rowcount = db_cursor.rowcount
+    db_cursor.close()
 
-    if cursor.rowcount == 0:
+    if rowcount == 0:
         raise HTTPException(
             status_code=404,
             detail="즐겨찾기한 행사가 아닙니다."

@@ -143,23 +143,6 @@
             font-size: 14px;
         }
 
-
-        .favorite-list-btn {
-            position: absolute;
-            bottom: 30px;
-            right: 30px;
-            z-index: 10;
-            background: white;
-            border: none;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            box-shadow: var(--card-shadow);
-            cursor: pointer;
-            font-size: 22px;
-            color: #f4c542;
-        }
-
         #app-nav {
             position: absolute;
             top: 0;
@@ -241,6 +224,78 @@
         .nav-auth button:hover {
             background: var(--primary-color);
             color: white;
+        }
+
+        .nav-favorites {
+            display: none;
+            min-height: 0;
+            margin: 18px 8px 0;
+            padding-top: 14px;
+            border-top: 1px solid #e5e7eb;
+            overflow: hidden;
+        }
+
+        .nav-favorites.is-visible {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nav-favorites h3 {
+            margin: 0 0 10px;
+            font-size: 14px;
+            color: #172033;
+        }
+
+        .nav-favorite-list {
+            display: grid;
+            gap: 8px;
+            max-height: 34vh;
+            overflow-y: auto;
+            padding-right: 3px;
+        }
+
+        .nav-favorite-card {
+            width: 100%;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .nav-favorite-card:hover {
+            border-color: #bfdbfe;
+            background: #f8fbff;
+        }
+
+        .nav-favorite-title,
+        .event-list-title {
+            display: -webkit-box;
+            overflow: hidden;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.35;
+        }
+
+        .nav-favorite-title {
+            color: #172033;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .nav-favorite-time {
+            margin-top: 6px;
+            color: #2563eb;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .nav-favorite-empty {
+            margin: 0;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.45;
         }
 
         .nav-auth span {
@@ -406,20 +461,27 @@
         }
 
         .overlay-event {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
             padding: 10px 0;
             border-top: 1px solid #edf0f2;
+        }
+
+        .overlay-event-main {
+            flex: 1;
+            min-width: 0;
+            border: none;
+            background: transparent;
+            text-align: left;
+            cursor: pointer;
+            padding: 0;
         }
 
         .overlay-event strong {
             display: block;
             font-size: 14px;
             color: #333;
-        }
-
-        .overlay-event p {
-            margin: 5px 0;
-            font-size: 13px;
-            color: #666;
         }
 
         .overlay-event small,
@@ -449,8 +511,57 @@
             color: #f4c542;
         }
 
-        .favorite-list-btn.is-hidden {
-            display: none;
+        .event-detail-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(15, 23, 42, 0.42);
+        }
+
+        .event-detail-modal {
+            position: relative;
+            width: min(560px, 100%);
+            max-height: 78vh;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #dfe5ee;
+            border-radius: 8px;
+            padding: 22px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.24);
+        }
+
+        .event-detail-modal h3 {
+            margin: 0 32px 8px 0;
+            font-size: 19px;
+            line-height: 1.35;
+            color: #071833;
+        }
+
+        .event-detail-time {
+            margin: 0 0 16px;
+            color: #2563eb;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .event-detail-body {
+            white-space: pre-wrap;
+            color: #40516b;
+            font-size: 14px;
+            line-height: 1.65;
+        }
+
+        .event-source-link {
+            display: inline-block;
+            margin-top: 16px;
+            color: #2563eb;
+            font-size: 14px;
+            font-weight: 800;
+            text-decoration: none;
         }
         #search-box {
             position: absolute;
@@ -706,6 +817,12 @@
                     <button class="nav-item" id="nav-chat" onclick="location.href='/chatbot'"><span class="nav-icon">⊕</span>ChatBot</button>
                     <button class="nav-item" id="nav-event" onclick="location.href='/event'"><span class="nav-icon">□</span>Event</button>
                 </div>
+                <div id="nav-favorites" class="nav-favorites">
+                    <h3>내 즐겨찾기</h3>
+                    <div id="nav-favorite-list" class="nav-favorite-list">
+                        <p class="nav-favorite-empty">저장한 행사가 없습니다.</p>
+                    </div>
+                </div>
                 <div id="auth-buttons" class="nav-auth">
                     <button onclick="location.href='/login'">로그인</button>
                 </div>
@@ -721,7 +838,6 @@
                 <button onclick="searchCampus()">검색</button>
             </div>
             <div id="map"></div>
-            <button class="favorite-list-btn is-hidden" onclick="openFavoriteList()">★</button>
         </div>
     </div>
 
@@ -732,6 +848,7 @@
         var defaultLevel = null;
         var favoriteEventIds = new Set();
         var campusBuildings = [];
+        var currentBuildingEvents = [];
         var showBuildingOverlay = null;
         var debugPositionMode = false;
         var notificationAlertShown = false;
@@ -853,6 +970,7 @@
                     }
 
                     const events = await loadBuildingEvents(building.building_id);
+                    currentBuildingEvents = events;
                     favoriteEventIds = await loadFavoriteEventIds();
 
                     let eventHtml = "";
@@ -861,16 +979,16 @@
                         eventHtml = `<p class="overlay-empty">등록된 일정이 없습니다.</p>`;
                     } else {
                         events.forEach(function (event) {
+                            const eventIndex = currentBuildingEvents.indexOf(event);
                             const isFavorite = favoriteEventIds.has(event.event_id);
 
                             eventHtml += [
                                 `<div class="overlay-event">`,
-                                `<div class="event-title-row">`,
-                                `<strong>${event.title}</strong>`,
-                                `<button class="favorite-star ${isFavorite ? "active" : ""}" onclick="toggleFavorite(${event.event_id}, this)">★</button>`,
-                                `</div>`,
-                                `<p>${event.description || ""}</p>`,
-                                `<small>${formatDateTime(event.start_datetime)} ~ ${formatDateTime(event.end_datetime)}</small>`,
+                                `<button class="overlay-event-main" title="${escapeHtml(event.title)}" onclick="openBuildingEventDetail(${eventIndex})">`,
+                                `<strong class="event-list-title">${escapeHtml(event.title)}</strong>`,
+                                `<small>${escapeHtml(formatDateTime(event.start_datetime))} ~ ${escapeHtml(formatDateTime(event.end_datetime))}</small>`,
+                                `</button>`,
+                                `<button class="favorite-star ${isFavorite ? "active" : ""}" data-event-id="${event.event_id}" onclick="toggleFavorite(${event.event_id}, this)">★</button>`,
                                 `</div>`
                             ].join("");
                         });
@@ -998,6 +1116,62 @@
                 .replaceAll(">", "&gt;")
                 .replaceAll('"', "&quot;")
                 .replaceAll("'", "&#039;");
+        }
+
+        function splitEventDescription(description) {
+            const text = String(description || "").trim();
+            const sourceMatch = text.match(/\n*원문:\s*(https?:\/\/\S+)\s*$/);
+
+            if (!sourceMatch) {
+                return { body: text, sourceUrl: "" };
+            }
+
+            return {
+                body: text.slice(0, sourceMatch.index).trim(),
+                sourceUrl: sourceMatch[1]
+            };
+        }
+
+        function openBuildingEventDetail(eventIndex) {
+            const eventData = currentBuildingEvents[eventIndex];
+
+            if (!eventData) {
+                return;
+            }
+
+            closeEventDetail();
+
+            const detail = splitEventDescription(eventData.description);
+            const sourceHtml = detail.sourceUrl
+                ? `<a class="event-source-link" href="${escapeHtml(detail.sourceUrl)}" target="_blank" rel="noopener noreferrer">원문 보기</a>`
+                : "";
+
+            const backdrop = document.createElement("div");
+            backdrop.className = "event-detail-backdrop";
+            backdrop.id = "event-detail-backdrop";
+            backdrop.onclick = function (event) {
+                if (event.target === backdrop) {
+                    closeEventDetail();
+                }
+            };
+            backdrop.innerHTML = [
+                `<div class="event-detail-modal">`,
+                `<button class="overlay-close" onclick="closeEventDetail()">×</button>`,
+                `<h3>${escapeHtml(eventData.title)}</h3>`,
+                `<p class="event-detail-time">${escapeHtml(formatDateTime(eventData.start_datetime))} ~ ${escapeHtml(formatDateTime(eventData.end_datetime))}</p>`,
+                `<div class="event-detail-body">${escapeHtml(detail.body || "상세 내용이 없습니다.")}</div>`,
+                sourceHtml,
+                `</div>`
+            ].join("");
+
+            document.body.appendChild(backdrop);
+        }
+
+        function closeEventDetail() {
+            const backdrop = document.getElementById("event-detail-backdrop");
+            if (backdrop) {
+                backdrop.remove();
+            }
         }
 
         function removeSourceText(value) {
@@ -1190,10 +1364,19 @@
         }
 
         async function loadFavoriteEventIds() {
+            const favorites = await loadFavorites();
+            return new Set(
+                favorites.map(function (event) {
+                    return event.event_id;
+                })
+            );
+        }
+
+        async function loadFavorites() {
             const token = localStorage.getItem("access_token");
 
             if (!token) {
-                return new Set();
+                return [];
             }
 
             try {
@@ -1204,20 +1387,60 @@
                 });
 
                 if (!response.ok) {
-                    return new Set();
+                    return [];
                 }
 
-                const favorites = await response.json();
-
-                return new Set(
-                    favorites.map(function (event) {
-                        return event.event_id;
-                    })
-                );
+                return await response.json();
             } catch (error) {
                 console.error(error);
-                return new Set();
+                return [];
             }
+        }
+
+        function setFavoriteStarState(eventId, isActive) {
+            document.querySelectorAll(`.favorite-star[data-event-id="${eventId}"]`).forEach(function (button) {
+                button.classList.toggle("active", isActive);
+            });
+        }
+
+        async function renderNavFavorites() {
+            const token = localStorage.getItem("access_token");
+            const box = document.getElementById("nav-favorites");
+            const list = document.getElementById("nav-favorite-list");
+
+            if (!box || !list) {
+                return;
+            }
+
+            if (!token) {
+                box.classList.remove("is-visible");
+                list.innerHTML = `<p class="nav-favorite-empty">저장한 행사가 없습니다.</p>`;
+                return;
+            }
+
+            box.classList.add("is-visible");
+            list.innerHTML = `<p class="nav-favorite-empty">즐겨찾기를 불러오는 중...</p>`;
+
+            const favorites = await loadFavorites();
+            favoriteEventIds = new Set(
+                favorites.map(function (event) {
+                    return event.event_id;
+                })
+            );
+
+            if (favorites.length === 0) {
+                list.innerHTML = `<p class="nav-favorite-empty">저장한 행사가 없습니다.</p>`;
+                return;
+            }
+
+            list.innerHTML = favorites.map(function (event) {
+                return [
+                    `<button class="nav-favorite-card" title="${escapeHtml(event.title)}" onclick="moveToFavoriteBuilding(${event.building_id})">`,
+                    `<div class="nav-favorite-title">${escapeHtml(event.title)}</div>`,
+                    `<div class="nav-favorite-time">${escapeHtml(formatDateTime(event.start_datetime))}</div>`,
+                    `</button>`
+                ].join("");
+            }).join("");
         }
 
         async function toggleFavorite(eventId, button) {
@@ -1232,6 +1455,10 @@
             const method = isFavorite ? "DELETE" : "POST";
 
             try {
+                if (button) {
+                    button.disabled = true;
+                }
+
                 const response = await fetch(`/favorites/${eventId}`, {
                     method: method,
                     headers: {
@@ -1247,14 +1474,19 @@
 
                 if (isFavorite) {
                     favoriteEventIds.delete(eventId);
-                    button.classList.remove("active");
+                    setFavoriteStarState(eventId, false);
                 } else {
                     favoriteEventIds.add(eventId);
-                    button.classList.add("active");
+                    setFavoriteStarState(eventId, true);
                 }
+                await renderNavFavorites();
             } catch (error) {
                 console.error(error);
                 alert("즐겨찾기 요청에 실패했습니다.");
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                }
             }
         }
 
@@ -1293,11 +1525,10 @@
                         favoriteHtml += [
                             `<div class="bus-card" onclick="moveToFavoriteBuilding(${event.building_id})">`,
                             `<div class="event-title-row">`,
-                            `<div class="bus-name">${event.title}</div>`,
-                            `<button class="favorite-star active" onclick="event.stopPropagation(); removeFavoriteFromList(${event.event_id}, this)">★</button>`,
+                            `<div class="bus-name event-list-title">${escapeHtml(event.title)}</div>`,
+                            `<button class="favorite-star active" data-event-id="${event.event_id}" onclick="event.stopPropagation(); removeFavoriteFromList(${event.event_id}, this)">★</button>`,
                             `</div>`,
-                            `<div class="bus-status">${event.description || ""}</div>`,
-                            `<div class="arrival-time">${formatDateTime(event.start_datetime)} ~ ${formatDateTime(event.end_datetime)}</div>`,
+                            `<div class="arrival-time">${escapeHtml(formatDateTime(event.start_datetime))} ~ ${escapeHtml(formatDateTime(event.end_datetime))}</div>`,
                             `</div>`
                         ].join("");
                     });
@@ -1347,12 +1578,14 @@
                 }
 
                 favoriteEventIds.delete(eventId);
+                setFavoriteStarState(eventId, false);
 
                 const eventBox = button.closest(".bus-card");
 
                 if (eventBox) {
                     eventBox.remove();
                 }
+                await renderNavFavorites();
 
                 const panel = document.getElementById("timetable-panel");
 
@@ -1366,6 +1599,8 @@
         }
 
         function closeBuildingOverlay() {
+            closeEventDetail();
+
             if (currentOverlay) {
                 currentOverlay.setMap(null);
                 currentOverlay = null;
@@ -1402,7 +1637,6 @@
             const token = localStorage.getItem("access_token");
             const name = localStorage.getItem("name");
             const authButtons = document.getElementById("auth-buttons");
-            const favoriteListButton = document.querySelector(".favorite-list-btn");
 
             if (!authButtons) {
                 return;
@@ -1418,17 +1652,11 @@
                     '</button>'
                 ].join("");
 
-                if (favoriteListButton) {
-                    favoriteListButton.classList.remove("is-hidden");
-                }
-
+                renderNavFavorites();
                 showNotificationAlerts();
             } else {
                 authButtons.innerHTML = '<button onclick="location.href=\'/login\'">로그인</button>';
-
-                if (favoriteListButton) {
-                    favoriteListButton.classList.add("is-hidden");
-                }
+                renderNavFavorites();
             }
         }
 
@@ -1464,6 +1692,7 @@
 
         document.addEventListener("keydown", function (event) {
             if (event.key === "Escape") {
+                closeEventDetail();
                 closeBuildingOverlay();
                 closeSidebar();
             }

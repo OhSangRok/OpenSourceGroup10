@@ -631,6 +631,7 @@ def get_favorites(student_id: str = Depends(verify_token)):
     JOIN events
     ON favorite_events.event_id = events.event_id
     WHERE favorite_events.student_id = %s
+    ORDER BY favorite_events.created_at DESC, favorite_events.favorite_id DESC
     """
 
     db_cursor = get_db_cursor()

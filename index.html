@@ -251,6 +251,7 @@
             gap: 8px;
             max-height: 34vh;
             overflow-y: auto;
+            overflow-x: hidden;
             padding-right: 3px;
         }
 
@@ -262,6 +263,7 @@
             padding: 10px;
             text-align: left;
             cursor: pointer;
+            overflow: hidden;
         }
 
         .nav-favorite-card:hover {
@@ -269,13 +271,44 @@
             background: #f8fbff;
         }
 
-        .nav-favorite-title,
         .event-list-title {
-            display: -webkit-box;
             overflow: hidden;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
+            white-space: nowrap;
             line-height: 1.35;
+        }
+
+        .nav-favorite-title {
+            overflow: hidden;
+            white-space: nowrap;
+            line-height: 1.35;
+        }
+
+        .marquee-title {
+            display: block;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .marquee-title span {
+            display: inline-block;
+            padding-right: 36px;
+        }
+
+        .marquee-title.is-marquee span {
+            animation: title-marquee var(--title-duration, 12s) linear infinite;
+        }
+
+        .marquee-title.is-marquee:hover span {
+            animation-play-state: paused;
+        }
+
+        @keyframes title-marquee {
+            0% {
+                transform: translateX(0);
+            }
+            100% {
+                transform: translateX(calc(var(--title-shift, 0px) * -1));
+            }
         }
 
         .nav-favorite-title {
@@ -468,6 +501,13 @@
             border-top: 1px solid #edf0f2;
         }
 
+        .overlay-event.is-favorite {
+            margin: 0 -8px;
+            padding: 10px 8px;
+            border-radius: 8px;
+            background: #fff8df;
+        }
+
         .overlay-event-main {
             flex: 1;
             min-width: 0;
@@ -578,6 +618,14 @@
             padding: 10px 12px;
             border-radius: 999px;
             box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+            transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+        }
+
+        #search-box.is-hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translate(-50%, -12px);
         }
 
         #search-box input {
@@ -848,6 +896,7 @@
         var defaultLevel = null;
         var favoriteEventIds = new Set();
         var campusBuildings = [];
+        var currentBuilding = null;
         var currentBuildingEvents = [];
         var showBuildingOverlay = null;
         var debugPositionMode = false;
@@ -961,6 +1010,8 @@
 
                 showBuildingOverlay = async function (building) {
                     const position = new kakao.maps.LatLng(building.lat, building.lng);
+                    currentBuilding = building;
+                    setSearchBoxHidden(true);
 
                     map.setCenter(position);
                     map.setLevel(2);
@@ -969,9 +1020,18 @@
                         currentOverlay.setMap(null);
                     }
 
-                    const events = await loadBuildingEvents(building.building_id);
-                    currentBuildingEvents = events;
                     favoriteEventIds = await loadFavoriteEventIds();
+                    const events = (await loadBuildingEvents(building.building_id)).sort(function (a, b) {
+                        const aFavorite = favoriteEventIds.has(a.event_id) ? 0 : 1;
+                        const bFavorite = favoriteEventIds.has(b.event_id) ? 0 : 1;
+
+                        if (aFavorite !== bFavorite) {
+                            return aFavorite - bFavorite;
+                        }
+
+                        return String(a.start_datetime || "").localeCompare(String(b.start_datetime || ""));
+                    });
+                    currentBuildingEvents = events;
 
                     let eventHtml = "";
 
@@ -983,9 +1043,9 @@
                             const isFavorite = favoriteEventIds.has(event.event_id);
 
                             eventHtml += [
-                                `<div class="overlay-event">`,
+                                `<div class="overlay-event ${isFavorite ? "is-favorite" : ""}">`,
                                 `<button class="overlay-event-main" title="${escapeHtml(event.title)}" onclick="openBuildingEventDetail(${eventIndex})">`,
-                                `<strong class="event-list-title">${escapeHtml(event.title)}</strong>`,
+                                `<strong class="event-list-title marquee-title"><span>${escapeHtml(event.title)}</span></strong>`,
                                 `<small>${escapeHtml(formatDateTime(event.start_datetime))} ~ ${escapeHtml(formatDateTime(event.end_datetime))}</small>`,
                                 `</button>`,
                                 `<button class="favorite-star ${isFavorite ? "active" : ""}" data-event-id="${event.event_id}" onclick="toggleFavorite(${event.event_id}, this)">★</button>`,
@@ -1009,6 +1069,7 @@
                     });
 
                     currentOverlay.setMap(map);
+                    requestAnimationFrame(prepareMarqueeTitles);
                 }
 
                 buildings.forEach(function (building, index) {
@@ -1132,6 +1193,37 @@
             };
         }
 
+        function normalizeTitleText(value) {
+            return String(value || "")
+                .replace(/\[[^\]]+\]/g, "")
+                .replace(/[^\p{L}\p{N}]+/gu, "")
+                .toLowerCase();
+        }
+
+        function removeRepeatedTitleLines(body, title) {
+            const titleText = normalizeTitleText(title);
+            const lines = String(body || "").split(/\n+/);
+
+            while (lines.length > 0) {
+                const lineText = normalizeTitleText(lines[0]);
+                if (!lineText) {
+                    lines.shift();
+                    continue;
+                }
+                if (
+                    lineText === titleText
+                    || titleText.includes(lineText)
+                    || lineText.includes(titleText)
+                ) {
+                    lines.shift();
+                    continue;
+                }
+                break;
+            }
+
+            return lines.join("\n").trim();
+        }
+
         function openBuildingEventDetail(eventIndex) {
             const eventData = currentBuildingEvents[eventIndex];
 
@@ -1142,6 +1234,7 @@
             closeEventDetail();
 
             const detail = splitEventDescription(eventData.description);
+            const detailBody = removeRepeatedTitleLines(detail.body, eventData.title);
             const sourceHtml = detail.sourceUrl
                 ? `<a class="event-source-link" href="${escapeHtml(detail.sourceUrl)}" target="_blank" rel="noopener noreferrer">원문 보기</a>`
                 : "";
@@ -1159,7 +1252,7 @@
                 `<button class="overlay-close" onclick="closeEventDetail()">×</button>`,
                 `<h3>${escapeHtml(eventData.title)}</h3>`,
                 `<p class="event-detail-time">${escapeHtml(formatDateTime(eventData.start_datetime))} ~ ${escapeHtml(formatDateTime(eventData.end_datetime))}</p>`,
-                `<div class="event-detail-body">${escapeHtml(detail.body || "상세 내용이 없습니다.")}</div>`,
+                `<div class="event-detail-body">${escapeHtml(detailBody || "상세 내용이 없습니다.")}</div>`,
                 sourceHtml,
                 `</div>`
             ].join("");
@@ -1403,6 +1496,35 @@
             });
         }
 
+        function setSearchBoxHidden(isHidden) {
+            const searchBox = document.getElementById("search-box");
+            if (searchBox) {
+                searchBox.classList.toggle("is-hidden", isHidden);
+            }
+        }
+
+        function prepareMarqueeTitles() {
+            document.querySelectorAll(".marquee-title").forEach(function (title) {
+                const text = title.querySelector("span");
+                if (!text) {
+                    return;
+                }
+
+                title.classList.remove("is-marquee");
+                title.style.removeProperty("--title-shift");
+                title.style.removeProperty("--title-duration");
+
+                const shift = text.scrollWidth - title.clientWidth;
+                if (shift > 8) {
+                    const travel = shift + 36;
+                    const duration = Math.max(6, travel / 18);
+                    title.style.setProperty("--title-shift", `${travel}px`);
+                    title.style.setProperty("--title-duration", `${duration}s`);
+                    title.classList.add("is-marquee");
+                }
+            });
+        }
+
         async function renderNavFavorites() {
             const token = localStorage.getItem("access_token");
             const box = document.getElementById("nav-favorites");
@@ -1436,11 +1558,12 @@
             list.innerHTML = favorites.map(function (event) {
                 return [
                     `<button class="nav-favorite-card" title="${escapeHtml(event.title)}" onclick="moveToFavoriteBuilding(${event.building_id})">`,
-                    `<div class="nav-favorite-title">${escapeHtml(event.title)}</div>`,
+                    `<div class="nav-favorite-title marquee-title"><span>${escapeHtml(event.title)}</span></div>`,
                     `<div class="nav-favorite-time">${escapeHtml(formatDateTime(event.start_datetime))}</div>`,
                     `</button>`
                 ].join("");
             }).join("");
+            requestAnimationFrame(prepareMarqueeTitles);
         }
 
         async function toggleFavorite(eventId, button) {
@@ -1480,6 +1603,9 @@
                     setFavoriteStarState(eventId, true);
                 }
                 await renderNavFavorites();
+                if (currentBuilding) {
+                    await showBuildingOverlay(currentBuilding);
+                }
             } catch (error) {
                 console.error(error);
                 alert("즐겨찾기 요청에 실패했습니다.");
@@ -1525,7 +1651,7 @@
                         favoriteHtml += [
                             `<div class="bus-card" onclick="moveToFavoriteBuilding(${event.building_id})">`,
                             `<div class="event-title-row">`,
-                            `<div class="bus-name event-list-title">${escapeHtml(event.title)}</div>`,
+                            `<div class="bus-name event-list-title marquee-title"><span>${escapeHtml(event.title)}</span></div>`,
                             `<button class="favorite-star active" data-event-id="${event.event_id}" onclick="event.stopPropagation(); removeFavoriteFromList(${event.event_id}, this)">★</button>`,
                             `</div>`,
                             `<div class="arrival-time">${escapeHtml(formatDateTime(event.start_datetime))} ~ ${escapeHtml(formatDateTime(event.end_datetime))}</div>`,
@@ -1600,11 +1726,13 @@
 
         function closeBuildingOverlay() {
             closeEventDetail();
+            setSearchBoxHidden(false);
 
             if (currentOverlay) {
                 currentOverlay.setMap(null);
                 currentOverlay = null;
             }
+            currentBuilding = null;
 
             if (map && defaultCenter && defaultLevel) {
                 map.setCenter(defaultCenter);

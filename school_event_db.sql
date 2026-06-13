@@ -85,7 +85,7 @@ CREATE TABLE `bus_stops` (
   `longitude` decimal(10,7) DEFAULT NULL,
   `description` text,
   PRIMARY KEY (`stop_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -94,7 +94,7 @@ CREATE TABLE `bus_stops` (
 
 LOCK TABLES `bus_stops` WRITE;
 /*!40000 ALTER TABLE `bus_stops` DISABLE KEYS */;
-INSERT INTO `bus_stops` VALUES (1,'단국대.치과병원',37.3211000,127.1261000,'단국대학교 치과병원 앞 정류장'),(2,'단국대.종합실험동',37.3218000,127.1268000,'종합실험동 근처 정류장'),(3,'단국대.평화의광장',37.3225000,127.1275000,'평화의광장 근처 정류장'),(4,'단국대.인문관',37.3232000,127.1282000,'인문관 앞 정류장'),(5,'단국대정문',37.3240000,127.1290000,'단국대학교 정문 정류장'),(6,'단국대차고지',37.3250000,127.1300000,'단국대학교 차고지 정류장');
+INSERT INTO `bus_stops` VALUES (1,'단국대.치과병원',37.3211000,127.1261000,'단국대학교 치과병원 앞 정류장'),(2,'단국대.종합실험동',37.3218000,127.1268000,'종합실험동 근처 정류장'),(3,'단국대.평화의광장',37.3225000,127.1275000,'평화의광장 근처 정류장'),(4,'단국대.인문관',37.3232000,127.1282000,'인문관 앞 정류장'),(5,'단국대정문',37.3240000,127.1290000,'단국대학교 정문 정류장'),(6,'단국대차고지',37.3250000,127.1300000,'단국대학교 차고지 정류장'),(7,'죽전역',NULL,NULL,'죽전역 셔틀버스 승차장');
 /*!40000 ALTER TABLE `bus_stops` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -160,6 +160,58 @@ LOCK TABLES `favorite_events` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `shuttle_schedules`
+--
+
+DROP TABLE IF EXISTS `shuttle_schedules`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `shuttle_schedules` (
+  `schedule_id` int NOT NULL AUTO_INCREMENT,
+  `stop_id` int DEFAULT NULL,
+  `shuttle_time` time DEFAULT NULL,
+  PRIMARY KEY (`schedule_id`),
+  KEY `shuttle_schedules_ibfk_1` (`stop_id`),
+  CONSTRAINT `shuttle_schedules_ibfk_1` FOREIGN KEY (`stop_id`) REFERENCES `bus_stops` (`stop_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `shuttle_schedules`
+--
+
+LOCK TABLES `shuttle_schedules` WRITE;
+/*!40000 ALTER TABLE `shuttle_schedules` DISABLE KEYS */;
+INSERT INTO `shuttle_schedules` VALUES (16,1,'08:30:00'),(17,2,'08:35:00'),(18,3,'08:37:00'),(19,4,'08:40:00'),(20,5,'08:43:00'),(26,7,'08:30:00'),(27,5,'08:35:00'),(28,4,'08:37:00'),(29,3,'08:40:00'),(30,2,'08:43:00');
+/*!40000 ALTER TABLE `shuttle_schedules` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `shuttle_stops`
+--
+
+DROP TABLE IF EXISTS `shuttle_stops`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `shuttle_stops` (
+  `stop_id` int NOT NULL AUTO_INCREMENT,
+  `stop_name` varchar(50) DEFAULT NULL,
+  `description` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`stop_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `shuttle_stops`
+--
+
+LOCK TABLES `shuttle_stops` WRITE;
+/*!40000 ALTER TABLE `shuttle_stops` DISABLE KEYS */;
+INSERT INTO `shuttle_stops` VALUES (1,'죽전역','죽전역 셔틀버스 승차장'),(2,'죽전역','죽전역 셔틀버스 승차장'),(3,'정문','단국대학교 정문 셔틀버스 정류장'),(4,'인문관','인문관 셔틀버스 정류장'),(5,'평화의광장','평화의광장 셔틀버스 정류장'),(6,'종합실험동','종합실험동 셔틀버스 정류장');
+/*!40000 ALTER TABLE `shuttle_stops` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `users`
 --
 
@@ -174,6 +226,7 @@ CREATE TABLE `users` (
   `department` varchar(50) NOT NULL,
   `grade` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `is_admin` tinyint DEFAULT '0',
   PRIMARY KEY (`student_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -184,7 +237,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES ('32253449','$2b$12$IjISqKx9ZfJNFlAyjMEqP.hutEw4b2zrYrAMgovIuSW8y2Z6kqo5G','이윤형','AI 융합대학','소프트웨어학과',2,'2026-05-11 06:30:32');
+INSERT INTO `users` VALUES ('32253449','$2b$12$IjISqKx9ZfJNFlAyjMEqP.hutEw4b2zrYrAMgovIuSW8y2Z6kqo5G','이윤형','AI 융합대학','소프트웨어학과',2,'2026-05-11 06:30:32',1);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -197,4 +250,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-05-27 18:56:30
+-- Dump completed on 2026-06-14  5:26:15

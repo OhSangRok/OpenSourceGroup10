@@ -203,6 +203,11 @@ def chatbot_page():
 def event_page():
     return FileResponse("event.html", headers={"Cache-Control": "no-store"})
 
+# 개인 페이지
+@app.get("/mypage")
+def mypage_page():
+    return FileResponse("mypage.html", headers={"Cache-Control": "no-store"})
+
 # 로그인 페이지
 @app.get("/login")
 def login_page():

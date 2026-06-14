@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>My Page</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #4A90E2;
+            --bg-color: #f5f7fb;
+            --text-color: #172033;
+            --sub-text: #64748b;
+            --border-color: #e5e7eb;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Pretendard', sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        #app-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 120;
+            width: 292px;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.97);
+            box-shadow: 5px 0 18px rgba(15, 23, 42, 0.10);
+            padding: 30px 14px 18px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nav-brand {
+            margin: 0 0 30px 8px;
+            color: #2563eb;
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .nav-menu {
+            display: grid;
+            gap: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            min-height: 50px;
+            border: none;
+            background: transparent;
+            color: #64748b;
+            padding: 0 14px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            text-align: left;
+            text-decoration: none;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background: #eaf2ff;
+            color: #2563eb;
+        }
+
+        .nav-icon {
+            width: 24px;
+            text-align: center;
+            font-size: 19px;
+        }
+
+        .nav-auth {
+            margin-top: auto;
+            display: grid;
+            gap: 8px;
+            padding: 12px 8px 0;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .nav-auth button {
+            border: none;
+            background: #eef4fb;
+            color: #24425f;
+            padding: 11px 12px;
+            border-radius: 8px;
+            font-weight: 800;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
+        }
+
+        .nav-auth button:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .account-toggle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            min-height: 58px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: #111827;
+            padding: 8px 12px;
+            font-weight: 800;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .account-avatar {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            min-width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #eef2ff;
+            color: #4f46e5;
+            font-weight: 800;
+        }
+
+        .account-name {
+            flex: 1;
+            text-align: left;
+        }
+
+        .account-caret {
+            width: 8px;
+            height: 8px;
+            border-right: 2px solid #4f46e5;
+            border-bottom: 2px solid #4f46e5;
+            transform: rotate(225deg);
+        }
+
+        .account-caret.is-open {
+            transform: rotate(45deg);
+        }
+
+        .logout-menu {
+            display: none;
+            margin-bottom: 8px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+            color: #ef4444;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .logout-menu.open {
+            display: block;
+        }
+
+        .page {
+            margin-left: 292px;
+            min-height: 100vh;
+            padding: 34px 40px 60px;
+            box-sizing: border-box;
+        }
+
+        .page-inner {
+            width: min(920px, 100%);
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 34px;
+        }
+
+        .page-desc {
+            margin: 0 0 24px;
+            color: var(--sub-text);
+            font-size: 15px;
+        }
+
+        .section-grid {
+            display: grid;
+            gap: 18px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+            border: 1px solid var(--border-color);
+        }
+
+        .panel h2 {
+            margin: 0 0 14px;
+            font-size: 21px;
+            color: #172033;
+        }
+
+        .empty-text {
+            margin: 0;
+            color: var(--sub-text);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .schedule-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .schedule-card {
+            border: 1px solid #eef2f7;
+            border-radius: 10px;
+            padding: 14px 16px;
+            background: #ffffff;
+        }
+
+        .schedule-title {
+            font-size: 16px;
+            font-weight: 800;
+            color: #172033;
+            margin-bottom: 7px;
+        }
+
+        .schedule-date {
+            color: #2563eb;
+            font-size: 13px;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+
+        .schedule-memo {
+            color: var(--sub-text);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .form-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #d6dde6;
+            border-radius: 10px;
+            padding: 13px 14px;
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+        }
+
+        textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.16);
+        }
+
+        .primary-button {
+            border: none;
+            border-radius: 10px;
+            background: var(--primary-color);
+            color: white;
+            padding: 13px 18px;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .primary-button:hover {
+            background: #357ABD;
+        }
+
+        .login-required {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .login-required h2 {
+            margin: 0 0 10px;
+        }
+
+        .login-required p {
+            margin: 0 0 18px;
+            color: var(--sub-text);
+        }
+    </style>
+</head>
+
+<body>
+    <aside id="app-nav">
+        <h2 class="nav-brand">DKU Campus</h2>
+
+        <div class="nav-menu">
+            <a class="nav-item" href="/"><span class="nav-icon">▦</span>Campus</a>
+            <a class="nav-item" href="/chatbot"><span class="nav-icon">⊕</span>ChatBot</a>
+            <a class="nav-item" href="/event"><span class="nav-icon">□</span>Event</a>
+            <a class="nav-item active" href="/mypage"><span class="nav-icon">▣</span>My Page</a>
+        </div>
+
+        <div id="auth-buttons" class="nav-auth">
+            <button onclick="location.href='/login'">로그인</button>
+        </div>
+    </aside>
+
+    <main class="page">
+        <div class="page-inner">
+            <h1>My Page</h1>
+            <p class="page-desc">즐겨찾기한 행사와 개인 일정을 한 곳에서 관리할 수 있습니다.</p>
+
+            <div id="login-required" class="panel login-required" style="display:none;">
+                <h2>로그인이 필요합니다</h2>
+                <p>마이페이지는 로그인 후 이용할 수 있습니다.</p>
+                <button class="primary-button" onclick="location.href='/login'">로그인하기</button>
+            </div>
+
+            <div id="mypage-content" class="section-grid">
+                <section class="panel">
+                    <h2>⭐ 즐겨찾기 행사</h2>
+                    <div id="favorite-list" class="schedule-list">
+                        <p class="empty-text">즐겨찾기 행사를 불러오는 중...</p>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h2>📅 내 일정</h2>
+                    <div id="personal-schedule-list" class="schedule-list">
+                        <p class="empty-text">등록된 개인 일정이 없습니다.</p>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h2>➕ 일정 추가</h2>
+                    <div class="form-grid">
+                        <input id="schedule-title" type="text" placeholder="일정 제목">
+                        <input id="schedule-date" type="date">
+                        <textarea id="schedule-memo" placeholder="메모"></textarea>
+                        <button class="primary-button" onclick="addTempSchedule()">일정 추가</button>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function escapeHtml(value) {
+            return String(value || "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        function updateAuthButtons() {
+            const token = localStorage.getItem("access_token");
+            const name = localStorage.getItem("name");
+            const authButtons = document.getElementById("auth-buttons");
+
+            if (!authButtons) return;
+
+            if (token && name) {
+                authButtons.innerHTML = [
+                    '<div class="logout-menu" id="logout-menu" onclick="logout()">↪ 로그아웃</div>',
+                    '<button class="account-toggle" onclick="toggleAccountMenu()">',
+                    '<span class="account-avatar">' + escapeHtml(name.slice(0, 1)) + '</span>',
+                    '<span class="account-name">' + escapeHtml(name) + '</span>',
+                    '<span class="account-caret" id="account-caret"></span>',
+                    '</button>'
+                ].join("");
+            } else {
+                authButtons.innerHTML = '<button onclick="location.href=\'/login\'">로그인</button>';
+            }
+        }
+
+        function toggleAccountMenu() {
+            const menu = document.getElementById("logout-menu");
+            const caret = document.getElementById("account-caret");
+
+            if (!menu || !caret) return;
+
+            const isOpen = menu.classList.toggle("open");
+            caret.classList.toggle("is-open", isOpen);
+        }
+
+        function logout() {
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("name");
+            updateAuthButtons();
+            checkLogin();
+        }
+
+        function checkLogin() {
+            const token = localStorage.getItem("access_token");
+            const loginRequired = document.getElementById("login-required");
+            const mypageContent = document.getElementById("mypage-content");
+
+            if (!token) {
+                loginRequired.style.display = "block";
+                mypageContent.style.display = "none";
+                return false;
+            }
+
+            loginRequired.style.display = "none";
+            mypageContent.style.display = "grid";
+            return true;
+        }
+
+        async function loadFavorites() {
+            const token = localStorage.getItem("access_token");
+            const list = document.getElementById("favorite-list");
+
+            if (!token) return;
+
+            try {
+                const response = await fetch("/favorites", {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    list.innerHTML = '<p class="empty-text">즐겨찾기 행사를 불러오지 못했습니다.</p>';
+                    return;
+                }
+
+                const favorites = await response.json();
+
+                if (!Array.isArray(favorites) || favorites.length === 0) {
+                    list.innerHTML = '<p class="empty-text">즐겨찾기한 행사가 없습니다.</p>';
+                    return;
+                }
+
+                list.innerHTML = favorites.map(function (event) {
+                    return [
+                        '<div class="schedule-card">',
+                        '<div class="schedule-title">' + escapeHtml(event.title) + '</div>',
+                        '<div class="schedule-date">' + escapeHtml(formatDateTime(event.start_datetime)) + '</div>',
+                        '<div class="schedule-memo">' + escapeHtml(event.description || "상세 내용이 없습니다.") + '</div>',
+                        '</div>'
+                    ].join("");
+                }).join("");
+            } catch (error) {
+                console.error(error);
+                list.innerHTML = '<p class="empty-text">즐겨찾기 요청에 실패했습니다.</p>';
+            }
+        }
+
+        function addTempSchedule() {
+            const title = document.getElementById("schedule-title").value.trim();
+            const date = document.getElementById("schedule-date").value;
+            const memo = document.getElementById("schedule-memo").value.trim();
+
+            if (!title) {
+                alert("일정 제목을 입력해주세요.");
+                return;
+            }
+
+            if (!date) {
+                alert("날짜를 선택해주세요.");
+                return;
+            }
+
+            const list = document.getElementById("personal-schedule-list");
+
+            const card = document.createElement("div");
+            card.className = "schedule-card";
+            card.innerHTML = [
+                '<div class="schedule-title">' + escapeHtml(title) + '</div>',
+                '<div class="schedule-date">' + escapeHtml(date) + '</div>',
+                '<div class="schedule-memo">' + escapeHtml(memo || "메모 없음") + '</div>'
+            ].join("");
+
+            const emptyText = list.querySelector(".empty-text");
+            if (emptyText) {
+                list.innerHTML = "";
+            }
+
+            list.appendChild(card);
+
+            document.getElementById("schedule-title").value = "";
+            document.getElementById("schedule-date").value = "";
+            document.getElementById("schedule-memo").value = "";
+        }
+
+        function formatDateTime(value) {
+            if (!value) return "";
+            return String(value).replace("T", " ").slice(0, 16);
+        }
+
+        window.addEventListener("DOMContentLoaded", function () {
+            updateAuthButtons();
+
+            if (checkLogin()) {
+                loadFavorites();
+            }
+        });
+    </script>
+</body>
+</html>

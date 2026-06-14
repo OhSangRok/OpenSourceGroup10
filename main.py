@@ -679,7 +679,7 @@ def get_personal_schedules(
     ORDER BY schedule_date ASC, schedule_id ASC
     """
 
-    db_cursor = get_db_cursor()
+    db_cursor = get_cursor()
     db_cursor.execute(sql, (student_id,))
     results = db_cursor.fetchall()
     db_cursor.close()
@@ -724,7 +724,7 @@ def create_personal_schedule(
     )
 
     try:
-        db_cursor = get_db_cursor()
+        db_cursor = get_cursor()
         db_cursor.execute(sql, values)
         db.commit()
         db_cursor.close()
@@ -752,7 +752,7 @@ def delete_personal_schedule(
     AND student_id = %s
     """
 
-    db_cursor = get_db_cursor()
+    db_cursor = get_cursor()
     db_cursor.execute(sql, (schedule_id, student_id))
     db.commit()
 

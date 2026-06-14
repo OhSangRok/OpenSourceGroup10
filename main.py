@@ -77,6 +77,12 @@ class EventCreate(BaseModel):
     start_datetime: datetime
     end_datetime: datetime
 
+#개인스케줄
+class PersonalScheduleCreate(BaseModel):
+    title: str
+    schedule_date: str
+    memo: str = ""
+
 # 챗봇 질문 데이터 형식
 class ChatRequest(BaseModel):
     question: str

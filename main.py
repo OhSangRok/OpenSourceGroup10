@@ -679,8 +679,9 @@ def get_personal_schedules(
     ORDER BY schedule_date ASC, schedule_id ASC
     """
 
-    cursor.execute(sql, (student_id,))
-    results = cursor.fetchall()
+    with get_cursor() as cursor:
+        cursor.execute(sql, (student_id,))
+        results = cursor.fetchall()
 
     schedules = []
 
@@ -722,13 +723,12 @@ def create_personal_schedule(
     )
 
     try:
-        cursor.execute(sql, values)
-        db.commit()
+        with get_cursor() as cursor:
+            cursor.execute(sql, values)
 
         return {"message": "일정 추가 성공!"}
 
     except Error as error:
-        db.rollback()
         raise HTTPException(
             status_code=500,
             detail=f"개인 일정 추가 중 DB 오류가 발생했습니다: {error}"
@@ -748,10 +748,11 @@ def delete_personal_schedule(
     AND student_id = %s
     """
 
-    cursor.execute(sql, (schedule_id, student_id))
-    db.commit()
+    with get_cursor() as cursor:
+        cursor.execute(sql, (schedule_id, student_id))
+        rowcount = cursor.rowcount
 
-    if cursor.rowcount == 0:
+    if rowcount == 0:
         raise HTTPException(
             status_code=404,
             detail="일정을 찾을 수 없습니다."

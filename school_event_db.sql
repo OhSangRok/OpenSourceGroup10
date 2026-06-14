@@ -254,21 +254,23 @@ UNLOCK TABLES;
 
 --
 -- 개인 일정 저장 테이블
--- 사용자가 시험, 과제, 개인 일정을 등록
+-- 사용자가 시험, 과제, 개인 일정을 직접 등록하고 관리
 --
 
+DROP TABLE IF EXISTS `personal_schedules`;
+
 CREATE TABLE `personal_schedules` (
-  `schedule_id` INT NOT NULL AUTO_INCREMENT,
-  `student_id` VARCHAR(20) NOT NULL,
-  `title` VARCHAR(100) NOT NULL,
-  `schedule_date` DATE NOT NULL,
-  `memo` TEXT,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `schedule_id` int NOT NULL AUTO_INCREMENT,
+  `student_id` varchar(20) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `schedule_date` date NOT NULL,
+  `memo` text,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`schedule_id`),
+  KEY `student_id` (`student_id`),
 
-  CONSTRAINT `fk_personal_schedule_user`
-    FOREIGN KEY (`student_id`)
-    REFERENCES `users` (`student_id`)
+  CONSTRAINT `personal_schedules_ibfk_1`
+    FOREIGN KEY (`student_id`) REFERENCES `users` (`student_id`)
     ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

@@ -468,7 +468,57 @@
             }
         }
 
-        function addTempSchedule() {
+        async function loadPersonalSchedules() {
+            const token = localStorage.getItem("access_token");
+            const list = document.getElementById("personal-schedule-list");
+
+            if (!token) return;
+        
+            try {
+                const response = await fetch("/personal-schedules", {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                      }
+                });
+
+                if (!response.ok) {
+                    list.innerHTML = '<p class="empty-text">개인 일정을 불러오지 못했습니다.</p>';
+                    return;
+                }
+
+                const schedules = await response.json();
+
+                if (!Array.isArray(schedules) || schedules.length === 0) {
+                    list.innerHTML = '<p class="empty-text">등록된 개인 일정이 없습니다.</p>';
+                    return;
+                }
+
+                list.innerHTML = schedules.map(function (schedule) {
+                    return [
+                        '<div class="schedule-card">',
+                        '<div class="schedule-title">' + escapeHtml(schedule.title) + '</div>',
+                        '<div class="schedule-date">' + escapeHtml(formatDate(schedule.schedule_date)) + '</div>',
+                        '<div class="schedule-memo">' + escapeHtml(schedule.memo || "메모 없음") + '</div>',
+                        '<button class="delete-button" onclick="deletePersonalSchedule(' + schedule.schedule_id + ')">삭제</button>',
+                        '</div>'
+                    ].join("");
+                }).join("");
+
+            } catch (error) {
+                console.error(error);
+                list.innerHTML = '<p class="empty-text">개인 일정 요청에 실패했습니다.</p>';
+            }
+        }
+
+        async function createPersonalSchedule() {
+            const token = localStorage.getItem("access_token");
+
+            if (!token) {
+                alert("로그인 후 이용해주세요.");
+                location.href = "/login";
+                return;
+            }
+
             const title = document.getElementById("schedule-title").value.trim();
             const date = document.getElementById("schedule-date").value;
             const memo = document.getElementById("schedule-memo").value.trim();
@@ -483,28 +533,79 @@
                 return;
             }
 
-            const list = document.getElementById("personal-schedule-list");
+            try {
+                const response = await fetch("/personal-schedules", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        schedule_date: date,
+                        memo: memo
+                    })
+                });
 
-            const card = document.createElement("div");
-            card.className = "schedule-card";
-            card.innerHTML = [
-                '<div class="schedule-title">' + escapeHtml(title) + '</div>',
-                '<div class="schedule-date">' + escapeHtml(date) + '</div>',
-                '<div class="schedule-memo">' + escapeHtml(memo || "메모 없음") + '</div>'
-            ].join("");
+                const data = await response.json();
 
-            const emptyText = list.querySelector(".empty-text");
-            if (emptyText) {
-                list.innerHTML = "";
-            }
+                if (!response.ok) {
+                    alert(data.detail || "일정 추가에 실패했습니다.");
+                    return;
+                }
+        
+                document.getElementById("schedule-title").value = "";
+                document.getElementById("schedule-date").value = "";
+                document.getElementById("schedule-memo").value = "";
 
-            list.appendChild(card);
+                await loadPersonalSchedules();
 
-            document.getElementById("schedule-title").value = "";
-            document.getElementById("schedule-date").value = "";
-            document.getElementById("schedule-memo").value = "";
+            } catch (error) {
+                console.error(error);
+                alert("일정 추가 요청에 실패했습니다.");
+             }
         }
 
+        async function deletePersonalSchedule(scheduleId) {
+            const token = localStorage.getItem("access_token");
+
+            if (!token) {
+                alert("로그인 후 이용해주세요.");
+                location.href = "/login";
+                return;
+                    }
+
+            if (!confirm("이 일정을 삭제하시겠습니까?")) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/personal-schedules/${scheduleId}`, {
+                    method: "DELETE",
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    alert(data.detail || "일정 삭제에 실패했습니다.");
+                    return;
+                }
+
+                await loadPersonalSchedules();
+
+            } catch (error) {
+                console.error(error);
+                alert("일정 삭제 요청에 실패했습니다.");
+            }
+        }
+
+        function formatDate(value) {
+            if (!value) return "";
+            return String(value).slice(0, 10);
+        }
         function formatDateTime(value) {
             if (!value) return "";
             return String(value).replace("T", " ").slice(0, 16);

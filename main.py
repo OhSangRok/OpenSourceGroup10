@@ -15,6 +15,7 @@ import urllib.request
 from pathlib import Path
 
 import chromadb
+from contextlib import contextmanager
 
 app = FastAPI()
 security = HTTPBearer()
@@ -30,11 +31,25 @@ DB_CONFIG = {
     "password": "4321",
     "database": "school_event_db"
 }
+# helper: create a fresh connection per request
+def get_connection():
+    return mysql.connector.connect(**DB_CONFIG)
 
-# MySQL 연결
-db = mysql.connector.connect(**DB_CONFIG)
 
-cursor = db.cursor()
+@contextmanager
+def get_cursor(commit: bool = False):
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        yield cur
+        if commit:
+            conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        conn.close()
 
 CHROMA_PATH = os.getenv(
     "CHROMA_PATH",
@@ -43,15 +58,7 @@ CHROMA_PATH = os.getenv(
 CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "academic_document_chunks")
 
 
-def get_db_cursor():
-    global db
 
-    try:
-        db.ping(reconnect=True, attempts=3, delay=1)
-    except Error:
-        db = mysql.connector.connect(**DB_CONFIG)
-
-    return db.cursor()
 
 # 회원가입 데이터 형식
 class UserRegister(BaseModel):
@@ -135,8 +142,9 @@ def verify_admin(student_id: str = Depends(verify_token)):
     WHERE student_id = %s
     """
 
-    cursor.execute(sql, (student_id,))
-    result = cursor.fetchone()
+    with get_cursor() as cur:
+        cur.execute(sql, (student_id,))
+        result = cur.fetchone()
 
     if result is None or result[0] != 1:
         raise HTTPException(
@@ -245,16 +253,16 @@ def register(user: UserRegister):
     )
 
     try:
-        cursor.execute(sql, values)
-        db.commit()
+        with get_cursor(commit=True) as cur:
+            cur.execute(sql, values)
     except IntegrityError:
-        db.rollback()
+        
         raise HTTPException(
             status_code=409,
             detail="이미 가입된 학번입니다."
         )
     except Error as error:
-        db.rollback()
+        
         raise HTTPException(
             status_code=500,
             detail=f"회원가입 처리 중 DB 오류가 발생했습니다: {error}"
@@ -272,8 +280,9 @@ def login(user: UserLogin):
     WHERE student_id = %s
     """
 
-    cursor.execute(sql, (user.student_id,))
-    result = cursor.fetchone()
+    with get_cursor() as cur:
+        cur.execute(sql, (user.student_id,))
+        result = cur.fetchone()
 
     if result is None:
         return {"message": "존재하지 않는 학번입니다."}
@@ -308,8 +317,9 @@ def get_me(student_id: str = Depends(verify_token)):
     WHERE student_id = %s
     """
 
-    cursor.execute(sql, (student_id,))
-    result = cursor.fetchone()
+    with get_cursor() as cur:
+        cur.execute(sql, (student_id,))
+        result = cur.fetchone()
 
     if result is None:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
@@ -331,10 +341,9 @@ def get_buildings():
     FROM buildings
     """
 
-    db_cursor = get_db_cursor()
-    db_cursor.execute(sql)
-    results = db_cursor.fetchall()
-    db_cursor.close()
+    with get_cursor() as cur:
+        cur.execute(sql)
+        results = cur.fetchall()
 
     buildings = []
 
@@ -357,10 +366,9 @@ def get_events():
     SELECT *
     FROM events
     """
-
-    cursor.execute(sql)
-
-    results = cursor.fetchall()
+    with get_cursor() as cur:
+        cur.execute(sql)
+        results = cur.fetchall()
 
     events = []
 
@@ -533,10 +541,9 @@ def get_today_events():
     ORDER BY start_datetime ASC
     """
 
-    db_cursor = get_db_cursor()
-    db_cursor.execute(sql)
-    results = db_cursor.fetchall()
-    db_cursor.close()
+    with get_cursor() as cur:
+        cur.execute(sql)
+        results = cur.fetchall()
 
     events = []
 
@@ -568,10 +575,9 @@ def get_building_events(building_id: int):
     WHERE building_id = %s
     """
 
-    db_cursor = get_db_cursor()
-    db_cursor.execute(sql, (building_id,))
-    results = db_cursor.fetchall()
-    db_cursor.close()
+    with get_cursor() as cur:
+        cur.execute(sql, (building_id,))
+        results = cur.fetchall()
 
     events = []
 
@@ -605,15 +611,10 @@ def add_favorite(
     values = (student_id, event_id)
 
     try:
-        db_cursor = get_db_cursor()
-        db_cursor.execute(sql, values)
-        db.commit()
-        db_cursor.close()
-
+        with get_cursor(commit=True) as cur:
+            cur.execute(sql, values)
         return {"message": "즐겨찾기 추가 성공!"}
-
-    except:
-        db.rollback()
+    except Exception:
         raise HTTPException(
             status_code=400,
             detail="이미 즐겨찾기한 행사입니다."
@@ -640,10 +641,9 @@ def get_favorites(student_id: str = Depends(verify_token)):
     ORDER BY favorite_events.created_at DESC, favorite_events.favorite_id DESC
     """
 
-    db_cursor = get_db_cursor()
-    db_cursor.execute(sql, (student_id,))
-    results = db_cursor.fetchall()
-    db_cursor.close()
+    with get_cursor() as cur:
+        cur.execute(sql, (student_id,))
+        results = cur.fetchall()
 
     favorites = []
 
@@ -782,10 +782,9 @@ def get_notifications(student_id: str = Depends(verify_token)):
     ORDER BY events.start_datetime ASC
     """
 
-    db_cursor = get_db_cursor()
-    db_cursor.execute(sql, (student_id,))
-    results = db_cursor.fetchall()
-    db_cursor.close()
+    with get_cursor() as cur:
+        cur.execute(sql, (student_id,))
+        results = cur.fetchall()
 
     notifications = []
 
@@ -814,11 +813,9 @@ def delete_favorite(
     AND event_id = %s
     """
 
-    db_cursor = get_db_cursor()
-    db_cursor.execute(sql, (student_id, event_id))
-    db.commit()
-    rowcount = db_cursor.rowcount
-    db_cursor.close()
+    with get_cursor(commit=True) as cur:
+        cur.execute(sql, (student_id, event_id))
+        rowcount = cur.rowcount
 
     if rowcount == 0:
         raise HTTPException(
@@ -836,9 +833,9 @@ def get_bus_stops():
     SELECT *
     FROM bus_stops
     """
-
-    cursor.execute(sql)
-    results = cursor.fetchall()
+    with get_cursor() as cur:
+        cur.execute(sql)
+        results = cur.fetchall()
 
     bus_stops = []
 
@@ -863,8 +860,9 @@ def get_bus_schedules(stop_id: int):
     WHERE stop_id = %s
     """
 
-    cursor.execute(sql, (stop_id,))
-    results = cursor.fetchall()
+    with get_cursor() as cur:
+        cur.execute(sql, (stop_id,))
+        results = cur.fetchall()
 
     schedules = []
 
@@ -892,8 +890,9 @@ def get_next_buses(stop_id: int):
     ORDER BY arrival_time ASC
     """
 
-    cursor.execute(sql, (stop_id,))
-    results = cursor.fetchall()
+    with get_cursor() as cur:
+        cur.execute(sql, (stop_id,))
+        results = cur.fetchall()
 
     buses = []
 
@@ -937,8 +936,8 @@ def create_event(
         event.end_datetime
     )
 
-    cursor.execute(sql, values)
-    db.commit()
+    with get_cursor(commit=True) as cur:
+        cur.execute(sql, values)
 
     return {"message": "행사 추가 성공!"}
 
@@ -954,10 +953,11 @@ def delete_event(
     WHERE event_id = %s
     """
 
-    cursor.execute(sql, (event_id,))
-    db.commit()
+    with get_cursor(commit=True) as cur:
+        cur.execute(sql, (event_id,))
+        rowcount = cur.rowcount
 
-    if cursor.rowcount == 0:
+    if rowcount == 0:
         raise HTTPException(
             status_code=404,
             detail="행사를 찾을 수 없습니다."
@@ -996,10 +996,11 @@ def update_event(
         event_id
     )
 
-    cursor.execute(sql, values)
-    db.commit()
+    with get_cursor(commit=True) as cur:
+        cur.execute(sql, values)
+        rowcount = cur.rowcount
 
-    if cursor.rowcount == 0:
+    if rowcount == 0:
         raise HTTPException(
             status_code=404,
             detail="행사를 찾을 수 없습니다."
@@ -1023,8 +1024,9 @@ def get_shuttle_stops():
     ON bus_stops.stop_id = shuttle_schedules.stop_id
     """
 
-    cursor.execute(sql)
-    results = cursor.fetchall()
+    with get_cursor() as cur:
+        cur.execute(sql)
+        results = cur.fetchall()
 
     shuttle_stops = []
 
@@ -1042,11 +1044,12 @@ def get_shuttle_stops():
 # 셔틀버스 시간표 조회 API
 @app.get("/shuttle-stops/{stop_id}/schedules")
 def get_shuttle_schedules(stop_id: int):
-    cursor.execute(
-        "SELECT * FROM shuttle_schedules WHERE stop_id = %s",
-        (stop_id,)
-    )
-    results = cursor.fetchall()
+    with get_cursor() as cur:
+        cur.execute(
+            "SELECT * FROM shuttle_schedules WHERE stop_id = %s",
+            (stop_id,)
+        )
+        results = cur.fetchall()
 
     return [
         {
@@ -1069,8 +1072,9 @@ def get_next_shuttle(stop_id: int):
     ORDER BY shuttle_time ASC
     """
 
-    cursor.execute(sql, (stop_id,))
-    results = cursor.fetchall()
+    with get_cursor() as cur:
+        cur.execute(sql, (stop_id,))
+        results = cur.fetchall()
 
     for row in results:
 
@@ -1108,8 +1112,9 @@ def get_college_events(college: str):
     WHERE college = %s
     """
 
-    cursor.execute(sql, (college,))
-    results = cursor.fetchall()
+    with get_cursor() as cur:
+        cur.execute(sql, (college,))
+        results = cur.fetchall()
 
     events = []
 
@@ -1138,8 +1143,9 @@ def get_department_events(department: str):
     WHERE department = %s
     """
 
-    cursor.execute(sql, (department,))
-    results = cursor.fetchall()
+    with get_cursor() as cur:
+        cur.execute(sql, (department,))
+        results = cur.fetchall()
 
     events = []
 
@@ -1156,8 +1162,3 @@ def get_department_events(department: str):
         })
 
     return events
-
-# 개인 페이지
-@app.get("/mypage")
-def mypage_page():
-    return FileResponse("mypage.html", headers={"Cache-Control": "no-store"})

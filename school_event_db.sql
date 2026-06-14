@@ -173,7 +173,7 @@ CREATE TABLE `shuttle_schedules` (
   PRIMARY KEY (`schedule_id`),
   KEY `shuttle_schedules_ibfk_1` (`stop_id`),
   CONSTRAINT `shuttle_schedules_ibfk_1` FOREIGN KEY (`stop_id`) REFERENCES `bus_stops` (`stop_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -182,7 +182,7 @@ CREATE TABLE `shuttle_schedules` (
 
 LOCK TABLES `shuttle_schedules` WRITE;
 /*!40000 ALTER TABLE `shuttle_schedules` DISABLE KEYS */;
-INSERT INTO `shuttle_schedules` VALUES (16,1,'08:30:00'),(17,2,'08:35:00'),(18,3,'08:37:00'),(19,4,'08:40:00'),(20,5,'08:43:00'),(26,7,'08:30:00'),(27,5,'08:35:00'),(28,4,'08:37:00'),(29,3,'08:40:00'),(30,2,'08:43:00');
+INSERT INTO `shuttle_schedules` VALUES (16,1,'08:30:00'),(17,2,'08:35:00'),(18,3,'08:37:00'),(19,4,'08:40:00'),(20,5,'08:43:00'),(26,7,'08:30:00'),(27,5,'08:35:00'),(28,4,'08:37:00'),(29,3,'08:40:00'),(30,2,'08:43:00'),(31,5,'16:00:00'),(32,5,'21:00:00');
 /*!40000 ALTER TABLE `shuttle_schedules` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -250,27 +250,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-14  5:26:15
-
---
--- 개인 일정 저장 테이블
--- 사용자가 시험, 과제, 개인 일정을 직접 등록하고 관리
---
-
-DROP TABLE IF EXISTS `personal_schedules`;
-
-CREATE TABLE `personal_schedules` (
-  `schedule_id` int NOT NULL AUTO_INCREMENT,
-  `student_id` varchar(20) NOT NULL,
-  `title` varchar(100) NOT NULL,
-  `schedule_date` date NOT NULL,
-  `memo` text,
-  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (`schedule_id`),
-  KEY `student_id` (`student_id`),
-
-  CONSTRAINT `personal_schedules_ibfk_1`
-    FOREIGN KEY (`student_id`) REFERENCES `users` (`student_id`)
-    ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+-- Dump completed on 2026-06-14 20:10:09

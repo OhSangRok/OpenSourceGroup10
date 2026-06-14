@@ -251,3 +251,24 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2026-06-14  5:26:15
+
+--
+-- 개인 일정 저장 테이블
+-- 사용자가 시험, 과제, 개인 일정을 등록
+--
+
+CREATE TABLE `personal_schedules` (
+  `schedule_id` INT NOT NULL AUTO_INCREMENT,
+  `student_id` VARCHAR(20) NOT NULL,
+  `title` VARCHAR(100) NOT NULL,
+  `schedule_date` DATE NOT NULL,
+  `memo` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`schedule_id`),
+
+  CONSTRAINT `fk_personal_schedule_user`
+    FOREIGN KEY (`student_id`)
+    REFERENCES `users` (`student_id`)
+    ON DELETE CASCADE
+);

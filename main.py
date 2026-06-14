@@ -1007,3 +1007,8 @@ def get_department_events(department: str):
         })
 
     return events
+
+# 개인 페이지
+@app.get("/mypage")
+def mypage_page():
+    return FileResponse("mypage.html", headers={"Cache-Control": "no-store"})

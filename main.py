@@ -671,7 +671,6 @@ def get_favorites(student_id: str = Depends(verify_token)):
 def get_personal_schedules(
     student_id: str = Depends(verify_token)
 ):
-
     sql = """
     SELECT schedule_id, title, schedule_date, memo
     FROM personal_schedules
@@ -679,9 +678,12 @@ def get_personal_schedules(
     ORDER BY schedule_date ASC, schedule_id ASC
     """
 
-    with get_cursor() as cursor:
-        cursor.execute(sql, (student_id,))
-        results = cursor.fetchall()
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(sql, (student_id,))
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
 
     schedules = []
 
@@ -702,7 +704,6 @@ def create_personal_schedule(
     schedule: PersonalScheduleCreate,
     student_id: str = Depends(verify_token)
 ):
-
     if not schedule.title.strip() or not schedule.schedule_date.strip():
         raise HTTPException(
             status_code=400,
@@ -723,8 +724,12 @@ def create_personal_schedule(
     )
 
     try:
-        with get_cursor() as cursor:
-            cursor.execute(sql, values)
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(sql, values)
+        conn.commit()
+        cursor.close()
+        conn.close()
 
         return {"message": "일정 추가 성공!"}
 
@@ -741,16 +746,19 @@ def delete_personal_schedule(
     schedule_id: int,
     student_id: str = Depends(verify_token)
 ):
-
     sql = """
     DELETE FROM personal_schedules
     WHERE schedule_id = %s
     AND student_id = %s
     """
 
-    with get_cursor() as cursor:
-        cursor.execute(sql, (schedule_id, student_id))
-        rowcount = cursor.rowcount
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(sql, (schedule_id, student_id))
+    conn.commit()
+    rowcount = cursor.rowcount
+    cursor.close()
+    conn.close()
 
     if rowcount == 0:
         raise HTTPException(
@@ -759,7 +767,7 @@ def delete_personal_schedule(
         )
 
     return {"message": "일정 삭제 성공!"}
-
+    
 # 일정 알림 조회 API
 @app.get("/notifications")
 def get_notifications(student_id: str = Depends(verify_token)):

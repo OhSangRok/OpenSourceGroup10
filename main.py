@@ -679,10 +679,8 @@ def get_personal_schedules(
     ORDER BY schedule_date ASC, schedule_id ASC
     """
 
-    db_cursor = get_cursor()
-    db_cursor.execute(sql, (student_id,))
-    results = db_cursor.fetchall()
-    db_cursor.close()
+    cursor.execute(sql, (student_id,))
+    results = cursor.fetchall()
 
     schedules = []
 
@@ -724,10 +722,8 @@ def create_personal_schedule(
     )
 
     try:
-        db_cursor = get_cursor()
-        db_cursor.execute(sql, values)
+        cursor.execute(sql, values)
         db.commit()
-        db_cursor.close()
 
         return {"message": "일정 추가 성공!"}
 
@@ -752,14 +748,10 @@ def delete_personal_schedule(
     AND student_id = %s
     """
 
-    db_cursor = get_cursor()
-    db_cursor.execute(sql, (schedule_id, student_id))
+    cursor.execute(sql, (schedule_id, student_id))
     db.commit()
 
-    rowcount = db_cursor.rowcount
-    db_cursor.close()
-
-    if rowcount == 0:
+    if cursor.rowcount == 0:
         raise HTTPException(
             status_code=404,
             detail="일정을 찾을 수 없습니다."

@@ -1163,27 +1163,33 @@
 
                 if (station.stopId) {
                     try {
-                        const shuttleResponse = await fetch(`/shuttle-stops/${station.stopId}/schedules`);
+                        const shuttleResponse = await fetch(`/shuttle-stops/${station.stopId}/next-shuttle`);
 
                         if (!shuttleResponse.ok) {
                             throw new Error("셔틀 API 응답 오류");
                         }
 
-                        const shuttleList = await shuttleResponse.json();
+                        const shuttle = await shuttleResponse.json();
 
-                        if (Array.isArray(shuttleList) && shuttleList.length > 0) {
-                            html += `<h3 style="color:#2563eb;">셔틀 버스</h3>`;
+                        html += `<h3 style="color:#2563eb;">셔틀 버스</h3>`;
 
-                            shuttleList.forEach(function (shuttle) {
-                                html += [
-                                    `<div class="bus-card">`,
-                                    `<div class="bus-name">셔틀버스</div>`,
-                                    `<div class="arrival-time">출발 시간: ${shuttle.shuttle_time}</div>`,
-                                    `</div>`
-                                ].join("");
-                            });
+                        if (shuttle.remaining_minutes !== null) {
+
+                            html += [
+                                `<div class="bus-card">`,
+                                `<div class="bus-name">셔틀버스</div>`,
+                                `<div class="arrival-time">${shuttle.remaining_minutes}분 후 도착</div>`,
+                                `</div>`
+                            ].join("");
+
                         } else {
-                            html += `<p class="overlay-empty">셔틀버스 시간표가 없습니다.</p>`;
+
+                            html += `
+                                <div class="bus-card">
+                                    <div class="bus-name">셔틀버스</div>
+                                    <div class="arrival-time">운행 종료</div>
+                                </div>
+                            `;
                         }
                     } catch (error) {
                         console.error("셔틀버스 조회 실패:", error);

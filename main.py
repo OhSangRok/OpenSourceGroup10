@@ -931,6 +931,7 @@ def get_shuttle_stops():
         })
 
     return shuttle_stops
+
 # 셔틀버스 시간표 조회 API
 @app.get("/shuttle-stops/{stop_id}/schedules")
 def get_shuttle_schedules(stop_id: int):
@@ -948,6 +949,47 @@ def get_shuttle_schedules(stop_id: int):
         }
         for row in results
     ]
+
+@app.get("/shuttle-stops/{stop_id}/next-shuttle")
+def get_next_shuttle(stop_id: int):
+
+    now = datetime.utcnow() + timedelta(hours=9)
+
+    sql = """
+    SELECT shuttle_time
+    FROM shuttle_schedules
+    WHERE stop_id = %s
+    ORDER BY shuttle_time ASC
+    """
+
+    cursor.execute(sql, (stop_id,))
+    results = cursor.fetchall()
+
+    for row in results:
+
+        shuttle_time = row[0]
+
+        shuttle_datetime = (
+            datetime.combine(
+                datetime.today(),
+                datetime.min.time()
+            )
+            + shuttle_time
+        )
+
+        remaining_minutes = int(
+            (shuttle_datetime - now).total_seconds() / 60
+        )
+
+        if remaining_minutes >= 0:
+
+            return {
+                "remaining_minutes": remaining_minutes
+            }
+
+    return {
+        "remaining_minutes": None
+    }
 
 # 특정 단과대 행사 조회 API
 @app.get("/events/college/{college}")

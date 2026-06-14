@@ -77,15 +77,15 @@ class EventCreate(BaseModel):
     start_datetime: datetime
     end_datetime: datetime
 
-#개인스케줄
+# 챗봇 질문 데이터 형식
+class ChatRequest(BaseModel):
+    question: str
+
+# 개인 일정 데이터 형식
 class PersonalScheduleCreate(BaseModel):
     title: str
     schedule_date: str
     memo: str = ""
-
-# 챗봇 질문 데이터 형식
-class ChatRequest(BaseModel):
-    question: str
 
 # JWT 토큰 생성 함수
 def create_access_token(data: dict):
@@ -660,6 +660,107 @@ def get_favorites(student_id: str = Depends(verify_token)):
         })
 
     return favorites
+
+# 개인 일정 조회 API
+@app.get("/personal-schedules")
+def get_personal_schedules(
+    student_id: str = Depends(verify_token)
+):
+
+    sql = """
+    SELECT schedule_id, title, schedule_date, memo
+    FROM personal_schedules
+    WHERE student_id = %s
+    ORDER BY schedule_date ASC, schedule_id ASC
+    """
+
+    db_cursor = get_db_cursor()
+    db_cursor.execute(sql, (student_id,))
+    results = db_cursor.fetchall()
+    db_cursor.close()
+
+    schedules = []
+
+    for row in results:
+        schedules.append({
+            "schedule_id": row[0],
+            "title": row[1],
+            "schedule_date": row[2],
+            "memo": row[3]
+        })
+
+    return schedules
+
+
+# 개인 일정 추가 API
+@app.post("/personal-schedules")
+def create_personal_schedule(
+    schedule: PersonalScheduleCreate,
+    student_id: str = Depends(verify_token)
+):
+
+    if not schedule.title.strip() or not schedule.schedule_date.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="일정 제목과 날짜를 입력해주세요."
+        )
+
+    sql = """
+    INSERT INTO personal_schedules
+    (student_id, title, schedule_date, memo)
+    VALUES (%s, %s, %s, %s)
+    """
+
+    values = (
+        student_id,
+        schedule.title.strip(),
+        schedule.schedule_date,
+        schedule.memo.strip()
+    )
+
+    try:
+        db_cursor = get_db_cursor()
+        db_cursor.execute(sql, values)
+        db.commit()
+        db_cursor.close()
+
+        return {"message": "일정 추가 성공!"}
+
+    except Error as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"개인 일정 추가 중 DB 오류가 발생했습니다: {error}"
+        )
+
+
+# 개인 일정 삭제 API
+@app.delete("/personal-schedules/{schedule_id}")
+def delete_personal_schedule(
+    schedule_id: int,
+    student_id: str = Depends(verify_token)
+):
+
+    sql = """
+    DELETE FROM personal_schedules
+    WHERE schedule_id = %s
+    AND student_id = %s
+    """
+
+    db_cursor = get_db_cursor()
+    db_cursor.execute(sql, (schedule_id, student_id))
+    db.commit()
+
+    rowcount = db_cursor.rowcount
+    db_cursor.close()
+
+    if rowcount == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="일정을 찾을 수 없습니다."
+        )
+
+    return {"message": "일정 삭제 성공!"}
 
 # 일정 알림 조회 API
 @app.get("/notifications")

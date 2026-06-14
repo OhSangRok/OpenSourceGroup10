@@ -611,11 +611,12 @@
             return String(value).replace("T", " ").slice(0, 16);
         }
 
-        window.addEventListener("DOMContentLoaded", function () {
+       window.addEventListener("DOMContentLoaded", function () {
             updateAuthButtons();
 
             if (checkLogin()) {
                 loadFavorites();
+                loadPersonalSchedules();
             }
         });
     </script>

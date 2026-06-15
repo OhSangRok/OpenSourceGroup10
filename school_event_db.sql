@@ -147,7 +147,7 @@ CREATE TABLE `favorite_events` (
   KEY `event_id` (`event_id`),
   CONSTRAINT `favorite_events_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `users` (`student_id`),
   CONSTRAINT `favorite_events_ibfk_2` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -156,7 +156,39 @@ CREATE TABLE `favorite_events` (
 
 LOCK TABLES `favorite_events` WRITE;
 /*!40000 ALTER TABLE `favorite_events` DISABLE KEYS */;
+INSERT INTO `favorite_events` VALUES (3,'32253449',2,'2026-06-15 15:21:26');
 /*!40000 ALTER TABLE `favorite_events` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `personal_schedules`
+--
+
+DROP TABLE IF EXISTS `personal_schedules`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `personal_schedules` (
+  `schedule_id` int NOT NULL AUTO_INCREMENT,
+  `student_id` varchar(20) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `schedule_date` date NOT NULL,
+  `schedule_time` time DEFAULT NULL,
+  `building_id` int DEFAULT NULL,
+  `memo` text,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`schedule_id`),
+  KEY `student_id` (`student_id`),
+  KEY `building_id` (`building_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `personal_schedules`
+--
+
+LOCK TABLES `personal_schedules` WRITE;
+/*!40000 ALTER TABLE `personal_schedules` DISABLE KEYS */;
+/*!40000 ALTER TABLE `personal_schedules` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -250,20 +282,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-14 20:10:09
-
-CREATE TABLE IF NOT EXISTS push_tokens (
-    token_id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id VARCHAR(20) NOT NULL,
-    push_token TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_student_token (student_id, push_token(255))
-);
-
-CREATE TABLE IF NOT EXISTS notification_logs (
-    log_id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id VARCHAR(20) NOT NULL,
-    event_id INT NOT NULL,
-    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_notification (student_id, event_id)
-);
+-- Dump completed on 2026-06-16  1:01:34

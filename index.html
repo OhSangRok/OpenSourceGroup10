@@ -1158,6 +1158,14 @@
             });
         }
 
+        function getDisplayRouteName(station, routeName, routeIndex) {
+            if (Number(station.stopId) === 3 && routeName === "24") {
+                return routeIndex === 1 ? "24 (인문관 방향)" : "24 (종점)";
+            }
+
+            return routeName;
+        }
+
         async function loadBusArrival(station) {
             const serviceKey = "b109eeddfb82499c9fe238943b8bc0022b8c44c95461c2d64cd8897712bf48b2";
 
@@ -1197,8 +1205,12 @@
                 if (list.length > 0) {
                     html += `<h3 style="color:#2563eb;">일반 버스</h3>`;
 
+                    const routeCounts = {};
+
                     list.forEach(function (bus) {
-                        const routeName = bus.routeName || "노선명 없음";
+                        const baseRouteName = String(bus.routeName || "노선명 없음").trim();
+                        routeCounts[baseRouteName] = (routeCounts[baseRouteName] || 0) + 1;
+                        const routeName = getDisplayRouteName(station, baseRouteName, routeCounts[baseRouteName]);
 
                         const time1 =
                             bus.predictTime1 !== "" && bus.predictTime1 !== undefined

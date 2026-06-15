@@ -1081,7 +1081,9 @@
                     favoriteEventIds = await loadFavoriteEventIds();
                     const buildingEvents = await loadBuildingEvents(building.building_id);
                     const buildingTodos = (await loadPersonalSchedules()).filter(function (schedule) {
-                        return Number(schedule.building_id) === Number(building.building_id);
+                        const sameId = schedule.building_id && Number(schedule.building_id) === Number(building.building_id);
+                        const sameName = schedule.building_name && normalizeName(schedule.building_name) === normalizeName(building.name);
+                        return sameId || sameName;
                     }).map(normalizePersonalSchedule);
                     const events = buildingEvents.concat(buildingTodos).sort(function (a, b) {
                         const aFavorite = favoriteEventIds.has(a.event_id) ? 0 : 1;
@@ -1587,9 +1589,45 @@
             }
         }
 
+        function normalizeName(value) {
+            return String(value || "").replace(/\s+/g, "").toLowerCase();
+        }
+
+        function formatScheduleDate(value) {
+            const text = String(value || "");
+            const isoMatch = text.match(/\d{4}-\d{2}-\d{2}/);
+            if (isoMatch) {
+                return isoMatch[0];
+            }
+
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return text.slice(0, 10);
+            }
+
+            return [
+                date.getFullYear(),
+                String(date.getMonth() + 1).padStart(2, "0"),
+                String(date.getDate()).padStart(2, "0")
+            ].join("-");
+        }
+
+        function formatScheduleTime(value) {
+            const match = String(value || "").match(/(\d{1,2}):(\d{2})/);
+            if (!match) {
+                return "";
+            }
+
+            return String(Number(match[1])).padStart(2, "0") + ":" + match[2];
+        }
+
+        function formatTodoDateTime(todo) {
+            return [formatScheduleDate(todo.schedule_date), formatScheduleTime(todo.schedule_time)].filter(Boolean).join(" ");
+        }
+
         function normalizePersonalSchedule(schedule) {
-            const dateText = String(schedule.schedule_date || "").slice(0, 10);
-            const timeText = schedule.schedule_time ? String(schedule.schedule_time).slice(0, 5) : "00:00";
+            const dateText = formatScheduleDate(schedule.schedule_date);
+            const timeText = formatScheduleTime(schedule.schedule_time) || "00:00";
             const dateTime = dateText ? `${dateText}T${timeText}` : "";
 
             return {
@@ -1599,6 +1637,8 @@
                 description: schedule.memo || "",
                 building_id: schedule.building_id,
                 building_name: schedule.building_name,
+                schedule_date: schedule.schedule_date,
+                schedule_time: schedule.schedule_time,
                 start_datetime: dateTime,
                 end_datetime: dateTime,
                 is_personal_schedule: true
@@ -1755,9 +1795,7 @@
             list.innerHTML = `<p class="nav-todo-empty">할일을 불러오는 중...</p>`;
 
             const schedules = await loadPersonalSchedules();
-            const todos = schedules.filter(function (schedule) {
-                return schedule.building_id;
-            });
+            const todos = Array.isArray(schedules) ? schedules : [];
 
             if (todos.length === 0) {
                 list.innerHTML = `<p class="nav-todo-empty">등록한 할일이 없습니다.</p>`;
@@ -1766,10 +1804,15 @@
 
             list.innerHTML = todos.map(function (schedule) {
                 const todo = normalizePersonalSchedule(schedule);
+                const moveTarget = todo.building_id || "";
+                const moveName = todo.building_name || "";
+                const moveAction = moveTarget || moveName
+                    ? `onclick="moveToTodoBuilding('${escapeHtml(moveTarget)}', '${escapeHtml(moveName)}')"`
+                    : "";
                 return [
-                    `<button class="nav-todo-card" title="${escapeHtml(todo.title)}" onclick="moveToTodoBuilding(${todo.building_id})">`,
+                    `<button class="nav-todo-card" title="${escapeHtml(todo.title)}" ${moveAction}>`,
                     `<div class="nav-todo-title marquee-title"><span>${escapeHtml(todo.title)}</span></div>`,
-                    `<div class="nav-todo-time">${escapeHtml(formatDateTime(todo.start_datetime))}</div>`,
+                    `<div class="nav-todo-time">${escapeHtml(formatTodoDateTime(todo))}</div>`,
                     `</button>`
                 ].join("");
             }).join("");
@@ -1899,8 +1942,19 @@
             showBuildingOverlay(building);
         }
 
-        function moveToTodoBuilding(buildingId) {
-            moveToFavoriteBuilding(buildingId);
+        function moveToTodoBuilding(buildingId, buildingName) {
+            const building = campusBuildings.find(function (item) {
+                const sameId = buildingId && Number(item.building_id) === Number(buildingId);
+                const sameName = buildingName && normalizeName(item.name) === normalizeName(buildingName);
+                return sameId || sameName;
+            });
+
+            if (!building || !map) {
+                return;
+            }
+
+            closeSidebar();
+            showBuildingOverlay(building);
         }
 
         async function removeFavoriteFromList(eventId, button) {

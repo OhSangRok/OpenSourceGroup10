@@ -237,7 +237,7 @@ def chat_with_rag(chat: ChatRequest):
 # 기본 페이지
 @app.get("/")
 def home():
-    return FileResponse("index.html")
+    return FileResponse("index.html", headers={"Cache-Control": "no-store"})
 
 
 # 챗봇 페이지

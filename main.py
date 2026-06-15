@@ -806,40 +806,99 @@ def delete_personal_schedule(
     return {"message": "일정 삭제 성공!"}
     
 # 일정 알림 조회 API
+# 일정 알림 조회 API
 @app.get("/notifications")
 def get_notifications(student_id: str = Depends(verify_token)):
+    ensure_personal_schedules_table()
 
-    # 현재 시간 기준 24시간 이내 시작하는 즐겨찾기 행사 조회
-    sql = """
+    favorite_sql = """
     SELECT 
         events.event_id,
         events.title,
         events.description,
         events.start_datetime,
-        events.end_datetime
+        events.end_datetime,
+        buildings.building_name
     FROM favorite_events
     JOIN events
     ON favorite_events.event_id = events.event_id
+    LEFT JOIN buildings
+    ON events.building_id = buildings.building_id
     WHERE favorite_events.student_id = %s
     AND events.start_datetime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 1 DAY)
     ORDER BY events.start_datetime ASC
     """
 
-    with get_cursor() as cur:
-        cur.execute(sql, (student_id,))
-        results = cur.fetchall()
+    personal_sql = """
+    SELECT
+        personal_schedules.schedule_id,
+        personal_schedules.title,
+        personal_schedules.schedule_date,
+        personal_schedules.schedule_time,
+        personal_schedules.memo,
+        buildings.building_name
+    FROM personal_schedules
+    LEFT JOIN buildings
+    ON personal_schedules.building_id = buildings.building_id
+    WHERE personal_schedules.student_id = %s
+    AND TIMESTAMP(
+        personal_schedules.schedule_date,
+        IFNULL(personal_schedules.schedule_time, '00:00:00')
+    ) BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 1 DAY)
+    ORDER BY personal_schedules.schedule_date ASC, personal_schedules.schedule_time ASC
+    """
 
     notifications = []
 
-    for row in results:
+    with get_cursor() as cur:
+        cur.execute(favorite_sql, (student_id,))
+        favorite_results = cur.fetchall()
+
+        cur.execute(personal_sql, (student_id,))
+        personal_results = cur.fetchall()
+
+    for row in favorite_results:
+        start_dt = row[3]
+        end_dt = row[4]
+
+        remaining_minutes = int((start_dt - datetime.now()).total_seconds() // 60)
+
         notifications.append({
-            "event_id": row[0],
+            "type": "favorite_event",
+            "id": row[0],
             "title": row[1],
             "description": row[2],
-            "start_datetime": row[3],
-            "end_datetime": row[4],
-            "message": "곧 시작하는 관심 행사입니다."
+            "start_datetime": start_dt,
+            "end_datetime": end_dt,
+            "building_name": row[5],
+            "remaining_minutes": remaining_minutes,
+            "message": "곧 시작하는 즐겨찾기 행사입니다."
         })
+
+    for row in personal_results:
+        schedule_date = row[2]
+        schedule_time = row[3]
+
+        if schedule_time:
+            start_dt = datetime.combine(schedule_date, datetime.min.time()) + schedule_time
+        else:
+            start_dt = datetime.combine(schedule_date, datetime.min.time())
+
+        remaining_minutes = int((start_dt - datetime.now()).total_seconds() // 60)
+
+        notifications.append({
+            "type": "personal_schedule",
+            "id": row[0],
+            "title": row[1],
+            "description": row[4],
+            "start_datetime": start_dt,
+            "end_datetime": start_dt,
+            "building_name": row[5],
+            "remaining_minutes": remaining_minutes,
+            "message": "곧 시작하는 개인 일정입니다."
+        })
+
+    notifications.sort(key=lambda item: item["start_datetime"])
 
     return notifications
 

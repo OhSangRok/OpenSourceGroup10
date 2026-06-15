@@ -825,7 +825,8 @@ def get_notifications(student_id: str = Depends(verify_token)):
     LEFT JOIN buildings
     ON events.building_id = buildings.building_id
     WHERE favorite_events.student_id = %s
-    AND events.start_datetime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 1 DAY)
+    AND events.start_datetime BETWEEN DATE_ADD(UTC_TIMESTAMP(), INTERVAL 9 HOUR)
+    AND DATE_ADD(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 9 HOUR), INTERVAL 1 DAY)
     ORDER BY events.start_datetime ASC
     """
 
@@ -844,7 +845,8 @@ def get_notifications(student_id: str = Depends(verify_token)):
     AND TIMESTAMP(
         personal_schedules.schedule_date,
         IFNULL(personal_schedules.schedule_time, '00:00:00')
-    ) BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 1 DAY)
+    ) BETWEEN DATE_ADD(UTC_TIMESTAMP(), INTERVAL 9 HOUR)
+    AND DATE_ADD(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 9 HOUR), INTERVAL 1 DAY)
     ORDER BY personal_schedules.schedule_date ASC, personal_schedules.schedule_time ASC
     """
 
@@ -853,9 +855,11 @@ def get_notifications(student_id: str = Depends(verify_token)):
     with get_cursor() as cur:
         cur.execute(favorite_sql, (student_id,))
         favorite_results = cur.fetchall()
+        print("FAVORITE_RESULTS =", favorite_results)
 
         cur.execute(personal_sql, (student_id,))
         personal_results = cur.fetchall()
+        print("PERSONAL_RESULTS =", personal_results)
 
     for row in favorite_results:
         start_dt = row[3]

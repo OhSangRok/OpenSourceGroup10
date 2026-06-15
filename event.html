@@ -2,6 +2,9 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Event</title>
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
@@ -24,6 +27,15 @@
         .account-caret { display: inline-flex; align-items: center; justify-content: flex-end; min-width: 46px; color: #4f46e5; font-size: 24px; line-height: 1; padding: 0; }
         .logout-menu { display: none; margin-bottom: 8px; padding: 10px 12px; border-radius: 8px; background: white; box-shadow: 0 8px 20px rgba(15,23,42,0.12); color: #ef4444; font-weight: 800; cursor: pointer; }
         .logout-menu.open { display: block; }
+        .nav-interests { display: none; margin-top: 18px; padding: 14px 8px 0; border-top: 1px solid #e5e7eb; }
+        .nav-interests.is-visible { display: block; }
+        .nav-interests h3 { margin: 0 0 10px; color: #172033; font-size: 14px; font-weight: 800; }
+        .nav-interest-list { display: grid; gap: 8px; }
+        .nav-interest-card { width: 100%; min-width: 0; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff; padding: 10px 12px; color: #172033; font-family: inherit; text-align: left; cursor: pointer; }
+        .nav-interest-card:hover { border-color: #bfdbfe; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.10); }
+        .nav-interest-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #172033; font-size: 13px; font-weight: 800; }
+        .nav-interest-time { display: block; margin-top: 6px; color: #2563eb; font-size: 12px; font-weight: 800; }
+        .nav-interest-empty { margin: 0; color: #94a3b8; font-size: 13px; font-weight: 700; line-height: 1.5; }
 
         .page { margin-left: 292px; min-height: 100vh; padding: 34px 40px 60px; box-sizing: border-box; }
         .page-inner { width: min(920px, 100%); margin: 0 auto; }
@@ -49,9 +61,13 @@
         .event-card > summary::-webkit-details-marker { display: none; }
         .event-card > summary::after { content: ''; width: 7px; height: 7px; margin-top: 6px; border-right: 2px solid #94a3b8; border-bottom: 2px solid #94a3b8; transform: rotate(45deg); transition: transform .18s ease; }
         .event-card[open] > summary::after { transform: rotate(225deg); }
-        .event-title { display: grid; gap: 7px; min-width: 0; }
+        .event-title { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
+        .event-title-copy { display: grid; gap: 7px; min-width: 0; }
         .event-title strong { color: #172033; font-size: 16px; line-height: 1.35; word-break: keep-all; }
         .event-time { color: #2563eb; font-weight: 800; font-size: 13px; }
+        .interest-button { flex: 0 0 auto; border: none; background: transparent; color: #c8c8c8; padding: 0; font-family: inherit; font-size: 22px; line-height: 1; font-weight: 800; cursor: pointer; }
+        .interest-button.active { color: #f4c542; }
+        .interest-button:hover { color: #f4c542; }
         .event-detail { padding: 0 16px 16px; color: #64748b; line-height: 1.55; font-size: 14px; }
         .event-source { display: inline-flex; align-items: center; margin-top: 10px; min-height: 24px; color: #2563eb; font-size: 13px; font-weight: 800; text-decoration: none; }
         .event-source:hover { color: #2563eb; }
@@ -261,6 +277,13 @@
             <a class="nav-item " href="/"><span class="nav-icon">▦</span>Campus</a>
             <a class="nav-item " href="/chatbot"><span class="nav-icon">⊕</span>ChatBot</a>
             <a class="nav-item active" href="/event"><span class="nav-icon">□</span>Event</a>
+            <a class="nav-item " href="/mypage"><span class="nav-icon">▣</span>My Page</a>
+        </div>
+        <div id="nav-interests" class="nav-interests">
+            <h3>즐겨찾기 일정</h3>
+            <div id="nav-interest-list" class="nav-interest-list">
+                <p class="nav-interest-empty">관심 일정이 없습니다.</p>
+            </div>
         </div>
         <div id="auth-buttons" class="nav-auth">
             <button onclick="location.href='/login'">로그인</button>
@@ -294,13 +317,80 @@
             if (start === end || !end) return start;
             return start + ' ~ ' + end;
         }
+        const EVENT_INTEREST_KEY = 'dku_event_interests';
+        let todayEvents = [];
+        let interestedEventKeys = new Set();
+
+        function getEventKey(item) {
+            return String(item.event_id || [item.title, item.start_datetime, item.source_url || ''].join('|'));
+        }
+
+        function getInterestedEvents() {
+            try {
+                const data = JSON.parse(localStorage.getItem(EVENT_INTEREST_KEY) || '[]');
+                return Array.isArray(data) ? data : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function saveInterestedEvents(items) {
+            localStorage.setItem(EVENT_INTEREST_KEY, JSON.stringify(items));
+            interestedEventKeys = new Set(items.map(getEventKey));
+        }
+
+        function renderInterestSidebar() {
+            const box = document.getElementById('nav-interests');
+            const list = document.getElementById('nav-interest-list');
+            if (!box || !list) return;
+
+            const items = getInterestedEvents().slice(0, 8);
+            interestedEventKeys = new Set(items.map(getEventKey));
+            box.classList.toggle('is-visible', items.length > 0);
+
+            if (items.length === 0) {
+                list.innerHTML = '<p class="nav-interest-empty">관심 일정이 없습니다.</p>';
+                return;
+            }
+
+            list.innerHTML = items.map(function (item) {
+                return [
+                    '<button class="nav-interest-card" title="' + escapeHtml(item.title) + '">',
+                    '<span class="nav-interest-title">' + escapeHtml(item.title) + '</span>',
+                    '<span class="nav-interest-time">' + escapeHtml(formatEventPeriod(item)) + '</span>',
+                    '</button>'
+                ].join('');
+            }).join('');
+        }
+
+        function toggleInterest(index, button) {
+            const item = todayEvents[index];
+            if (!item) return;
+
+            const key = getEventKey(item);
+            const isInterested = interestedEventKeys.has(key);
+            const nextItems = getInterestedEvents().filter(function (eventItem) {
+                return getEventKey(eventItem) !== key;
+            });
+
+            if (!isInterested) {
+                nextItems.unshift(item);
+            }
+
+            saveInterestedEvents(nextItems.slice(0, 20));
+            if (button) {
+                button.classList.toggle('active', !isInterested);
+            }
+            renderInterestSidebar();
+        }
+
         function groupEvents(events) {
             const order = ['학사일정', '채용공지', '공지', '입찰공고', '행사'];
             const groups = {};
-            events.forEach(function (item) {
+            events.forEach(function (item, index) {
                 const type = item.source_type || item.department || '행사';
                 if (!groups[type]) groups[type] = [];
-                groups[type].push(item);
+                groups[type].push({ item: item, index: index });
             });
             return Object.keys(groups).sort(function (a, b) {
                 const ai = order.indexOf(a);
@@ -313,7 +403,10 @@
                 return { type: type, items: groups[type] };
             });
         }
-        function renderEventItem(item) {
+        function renderEventItem(entry) {
+            const item = entry.item;
+            const index = entry.index;
+            const isInterested = interestedEventKeys.has(getEventKey(item));
             const source = item.source_url
                 ? '<a class="event-source" href="' + escapeHtml(item.source_url) + '" target="_blank" rel="noopener">원문 보기</a>'
                 : '';
@@ -321,8 +414,11 @@
                 '<details class="event-card">',
                 '<summary>',
                 '<span class="event-title">',
+                '<button class="interest-button' + (isInterested ? ' active' : '') + '" title="즐겨찾기" onclick="event.preventDefault(); event.stopPropagation(); toggleInterest(' + index + ', this)">★</button>',
+                '<span class="event-title-copy">',
                 '<strong>' + escapeHtml(item.title) + '</strong>',
                 '<span class="event-time">' + escapeHtml(formatEventPeriod(item)) + '</span>',
+                '</span>',
                 '</span>',
                 '</summary>',
                 '<div class="event-detail">',
@@ -353,8 +449,11 @@
                     list.innerHTML = '';
                     return;
                 }
+                todayEvents = events;
+                interestedEventKeys = new Set(getInterestedEvents().map(getEventKey));
                 answer.textContent = formatTodayTitle();
                 list.innerHTML = groupEvents(events).map(renderEventSection).join('');
+                renderInterestSidebar();
             } catch (error) {
                 answer.textContent = '오늘 일정을 불러오지 못했습니다.';
             }
@@ -391,7 +490,7 @@
             updateAuthButtons();
         }
 
-        window.addEventListener('DOMContentLoaded', function () { updateAuthButtons(); loadTodayEvents(); });
+        window.addEventListener('DOMContentLoaded', function () { updateAuthButtons(); renderInterestSidebar(); loadTodayEvents(); });
     </script>
 </body>
 </html>

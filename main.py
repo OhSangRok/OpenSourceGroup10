@@ -23,7 +23,7 @@ security = HTTPBearer()
 # JWT 설정
 SECRET_KEY = "my-secret-key"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 DB_CONFIG = {
     "host": "localhost",
@@ -60,6 +60,23 @@ CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "academic_document_chunks")
 
 
 
+def get_index_buildings():
+    html_text = (Path(__file__).resolve().parent / "index.html").read_text(encoding="utf-8")
+    pattern = re.compile(
+        r'building_id:\s*(\d+),\s*name:\s*"([^"]+)",\s*lat:\s*([0-9.]+),\s*lng:\s*([0-9.]+),\s*info:\s*"([^"]*)"'
+    )
+    buildings = []
+    for match in pattern.finditer(html_text):
+        buildings.append({
+            "building_id": int(match.group(1)),
+            "building_name": match.group(2),
+            "latitude": float(match.group(3)),
+            "longitude": float(match.group(4)),
+            "description": match.group(5)
+        })
+    return buildings
+
+
 # 회원가입 데이터 형식
 class UserRegister(BaseModel):
     student_id: str
@@ -92,7 +109,37 @@ class ChatRequest(BaseModel):
 class PersonalScheduleCreate(BaseModel):
     title: str
     schedule_date: str
+    schedule_time: str = ""
+    building_id: int | None = None
     memo: str = ""
+
+
+def ensure_personal_schedules_table():
+    create_sql = """
+    CREATE TABLE IF NOT EXISTS personal_schedules (
+        schedule_id INT NOT NULL AUTO_INCREMENT,
+        student_id VARCHAR(20) NOT NULL,
+        title VARCHAR(100) NOT NULL,
+        schedule_date DATE NOT NULL,
+        schedule_time TIME DEFAULT NULL,
+        building_id INT DEFAULT NULL,
+        memo TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (schedule_id),
+        KEY student_id (student_id),
+        KEY building_id (building_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+    """
+    with get_cursor(commit=True) as cur:
+        cur.execute(create_sql)
+        cur.execute("SHOW COLUMNS FROM personal_schedules")
+        columns = {row[0] for row in cur.fetchall()}
+        if "schedule_time" not in columns:
+            cur.execute("ALTER TABLE personal_schedules ADD COLUMN schedule_time TIME DEFAULT NULL AFTER schedule_date")
+        if "building_id" not in columns:
+            cur.execute("ALTER TABLE personal_schedules ADD COLUMN building_id INT DEFAULT NULL AFTER schedule_time")
+        if "created_at" not in columns:
+            cur.execute("ALTER TABLE personal_schedules ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP")
 
 # JWT 토큰 생성 함수
 def create_access_token(data: dict):
@@ -196,7 +243,7 @@ def home():
 # 챗봇 페이지
 @app.get("/chatbot")
 def chatbot_page():
-    return FileResponse("chatbot.html")
+    return FileResponse("chatbot.html", headers={"Cache-Control": "no-store"})
 
 # 이벤트 페이지
 @app.get("/event")
@@ -340,28 +387,7 @@ def get_me(student_id: str = Depends(verify_token)):
 # 전체 건물 조회 API
 @app.get("/buildings")
 def get_buildings():
-
-    sql = """
-    SELECT *
-    FROM buildings
-    """
-
-    with get_cursor() as cur:
-        cur.execute(sql)
-        results = cur.fetchall()
-
-    buildings = []
-
-    for row in results:
-        buildings.append({
-            "building_id": row[0],
-            "building_name": row[1],
-            "latitude": float(row[2]),
-            "longitude": float(row[3]),
-            "description": row[4]
-        })
-
-    return buildings
+    return get_index_buildings()
 
 # 전체 행사 조회 API
 @app.get("/events")
@@ -638,10 +664,13 @@ def get_favorites(student_id: str = Depends(verify_token)):
         events.college,
         events.department,
         events.start_datetime,
-        events.end_datetime
+        events.end_datetime,
+        buildings.building_name
     FROM favorite_events
     JOIN events
     ON favorite_events.event_id = events.event_id
+    LEFT JOIN buildings
+    ON events.building_id = buildings.building_id
     WHERE favorite_events.student_id = %s
     ORDER BY favorite_events.created_at DESC, favorite_events.favorite_id DESC
     """
@@ -661,7 +690,8 @@ def get_favorites(student_id: str = Depends(verify_token)):
             "college": row[4],
             "department": row[5],
             "start_datetime": row[6],
-            "end_datetime": row[7]
+            "end_datetime": row[7],
+            "building_name": row[8]
         })
 
     return favorites
@@ -671,19 +701,26 @@ def get_favorites(student_id: str = Depends(verify_token)):
 def get_personal_schedules(
     student_id: str = Depends(verify_token)
 ):
+    ensure_personal_schedules_table()
     sql = """
-    SELECT schedule_id, title, schedule_date, memo
+    SELECT
+        personal_schedules.schedule_id,
+        personal_schedules.title,
+        personal_schedules.schedule_date,
+        personal_schedules.schedule_time,
+        personal_schedules.building_id,
+        buildings.building_name,
+        personal_schedules.memo
     FROM personal_schedules
-    WHERE student_id = %s
-    ORDER BY schedule_date ASC, schedule_id ASC
+    LEFT JOIN buildings
+    ON personal_schedules.building_id = buildings.building_id
+    WHERE personal_schedules.student_id = %s
+    ORDER BY personal_schedules.schedule_date ASC, personal_schedules.schedule_time ASC, personal_schedules.schedule_id ASC
     """
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(sql, (student_id,))
-    results = cursor.fetchall()
-    cursor.close()
-    conn.close()
+    with get_cursor() as cur:
+        cur.execute(sql, (student_id,))
+        results = cur.fetchall()
 
     schedules = []
 
@@ -692,7 +729,10 @@ def get_personal_schedules(
             "schedule_id": row[0],
             "title": row[1],
             "schedule_date": row[2],
-            "memo": row[3]
+            "schedule_time": str(row[3]) if row[3] else "",
+            "building_id": row[4],
+            "building_name": row[5],
+            "memo": row[6]
         })
 
     return schedules
@@ -704,6 +744,7 @@ def create_personal_schedule(
     schedule: PersonalScheduleCreate,
     student_id: str = Depends(verify_token)
 ):
+    ensure_personal_schedules_table()
     if not schedule.title.strip() or not schedule.schedule_date.strip():
         raise HTTPException(
             status_code=400,
@@ -712,24 +753,23 @@ def create_personal_schedule(
 
     sql = """
     INSERT INTO personal_schedules
-    (student_id, title, schedule_date, memo)
-    VALUES (%s, %s, %s, %s)
+    (student_id, title, schedule_date, schedule_time, building_id, memo)
+    VALUES (%s, %s, %s, %s, %s, %s)
     """
+    schedule_time = schedule.schedule_time.strip() or None
 
     values = (
         student_id,
         schedule.title.strip(),
         schedule.schedule_date,
+        schedule_time,
+        schedule.building_id,
         schedule.memo.strip()
     )
 
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute(sql, values)
-        conn.commit()
-        cursor.close()
-        conn.close()
+        with get_cursor(commit=True) as cur:
+            cur.execute(sql, values)
 
         return {"message": "일정 추가 성공!"}
 
@@ -746,19 +786,16 @@ def delete_personal_schedule(
     schedule_id: int,
     student_id: str = Depends(verify_token)
 ):
+    ensure_personal_schedules_table()
     sql = """
     DELETE FROM personal_schedules
     WHERE schedule_id = %s
     AND student_id = %s
     """
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(sql, (schedule_id, student_id))
-    conn.commit()
-    rowcount = cursor.rowcount
-    cursor.close()
-    conn.close()
+    with get_cursor(commit=True) as cur:
+        cur.execute(sql, (schedule_id, student_id))
+        rowcount = cur.rowcount
 
     if rowcount == 0:
         raise HTTPException(

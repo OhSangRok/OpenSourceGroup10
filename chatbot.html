@@ -2,6 +2,9 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>ChatBot</title>
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
@@ -24,6 +27,14 @@
         .account-caret { display: inline-flex; align-items: center; justify-content: flex-end; min-width: 46px; color: #4f46e5; font-size: 24px; line-height: 1; padding: 0; }
         .logout-menu { display: none; margin-bottom: 8px; padding: 10px 12px; border-radius: 8px; background: white; box-shadow: 0 8px 20px rgba(15,23,42,0.12); color: #ef4444; font-weight: 800; cursor: pointer; }
         .logout-menu.open { display: block; }
+        .nav-recent { display: none; margin-top: 18px; padding: 14px 8px 0; border-top: 1px solid #e5e7eb; }
+        .nav-recent.is-visible { display: block; }
+        .nav-recent h3 { margin: 0 0 10px; color: #172033; font-size: 14px; font-weight: 800; }
+        .nav-recent-list { display: grid; gap: 8px; }
+        .nav-recent-card { width: 100%; min-width: 0; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff; padding: 10px 12px; color: #172033; font-family: inherit; font-weight: 800; text-align: left; cursor: pointer; }
+        .nav-recent-card:hover { border-color: #bfdbfe; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.10); }
+        .nav-recent-question { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+        .nav-recent-empty { margin: 0; color: #94a3b8; font-size: 13px; font-weight: 700; line-height: 1.5; }
 
         .page { margin-left: 292px; min-height: 100vh; padding: 34px 40px 60px; box-sizing: border-box; }
         .page-inner { width: min(920px, 100%); margin: 0 auto; }
@@ -246,6 +257,13 @@
             <a class="nav-item " href="/"><span class="nav-icon">▦</span>Campus</a>
             <a class="nav-item active" href="/chatbot"><span class="nav-icon">⊕</span>ChatBot</a>
             <a class="nav-item " href="/event"><span class="nav-icon">□</span>Event</a>
+            <a class="nav-item " href="/mypage"><span class="nav-icon">▣</span>My Page</a>
+        </div>
+        <div id="nav-recent" class="nav-recent">
+            <h3>최근 질문</h3>
+            <div id="nav-recent-list" class="nav-recent-list">
+                <p class="nav-recent-empty">저장된 질문이 없습니다.</p>
+            </div>
         </div>
         <div id="auth-buttons" class="nav-auth">
             <button onclick="location.href='/login'">로그인</button>
@@ -266,6 +284,50 @@
     <script>
         function escapeHtml(value) { return String(value || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
         function removeSourceText(value) { const text = String(value || ''); const index = text.indexOf('참고 출처:'); return index === -1 ? text.trim() : text.slice(0, index).trim(); }
+        const CHAT_HISTORY_KEY = 'dku_chat_recent_answers';
+
+        function getRecentChats() {
+            try {
+                const data = JSON.parse(localStorage.getItem(CHAT_HISTORY_KEY) || '[]');
+                return Array.isArray(data) ? data : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function saveRecentChat(question, data) {
+            const chats = getRecentChats().filter(function (item) {
+                return item.question !== question;
+            });
+            chats.unshift({ question: question, data: data, savedAt: Date.now() });
+            localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chats.slice(0, 5)));
+            renderRecentChats();
+        }
+
+        function renderRecentChats() {
+            const box = document.getElementById('nav-recent');
+            const list = document.getElementById('nav-recent-list');
+            if (!box || !list) return;
+
+            const chats = getRecentChats().slice(0, 5);
+            box.classList.toggle('is-visible', chats.length > 0);
+            if (chats.length === 0) {
+                list.innerHTML = '<p class="nav-recent-empty">저장된 질문이 없습니다.</p>';
+                return;
+            }
+
+            list.innerHTML = chats.map(function (item, index) {
+                return '<button class="nav-recent-card" title="' + escapeHtml(item.question) + '" onclick="loadRecentChat(' + index + ')"><span class="nav-recent-question">' + escapeHtml(item.question) + '</span></button>';
+            }).join('');
+        }
+
+        function loadRecentChat(index) {
+            const item = getRecentChats()[index];
+            if (!item) return;
+            document.getElementById('question').value = item.question;
+            render(item.data);
+        }
+
         function render(data) {
             const answer = document.getElementById('answer');
             if (data.detail || data.error) { answer.textContent = data.detail || data.error; return; }
@@ -278,10 +340,19 @@
             const input = document.getElementById('question');
             const question = input.value.trim();
             if (!question) { alert('질문을 입력해주세요.'); return; }
+            const cached = getRecentChats().find(function (item) { return item.question === question; });
+            if (cached) {
+                render(cached.data);
+                return;
+            }
             document.getElementById('answer').textContent = '답변 생성 중...';
             try {
                 const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question }) });
-                render(await response.json());
+                const data = await response.json();
+                render(data);
+                if (!data.detail && !data.error) {
+                    saveRecentChat(question, data);
+                }
             } catch (error) { document.getElementById('answer').textContent = '챗봇 요청에 실패했습니다.'; }
         }
 
@@ -316,7 +387,21 @@
             updateAuthButtons();
         }
 
-        window.addEventListener('DOMContentLoaded', updateAuthButtons);
+        function ensureMyPageNavLink() {
+            const navMenu = document.querySelector('.nav-menu');
+            if (!navMenu || navMenu.querySelector('a[href="/mypage"]')) return;
+
+            navMenu.insertAdjacentHTML(
+                'beforeend',
+                '<a class="nav-item " href="/mypage"><span class="nav-icon">▣</span>My Page</a>'
+            );
+        }
+
+        window.addEventListener('DOMContentLoaded', function () {
+            ensureMyPageNavLink();
+            updateAuthButtons();
+            renderRecentChats();
+        });
     </script>
 </body>
 </html>

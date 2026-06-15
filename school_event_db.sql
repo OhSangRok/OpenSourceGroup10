@@ -211,7 +211,6 @@ INSERT INTO `shuttle_stops` VALUES (1,'죽전역','죽전역 셔틀버스 승차
 /*!40000 ALTER TABLE `shuttle_stops` ENABLE KEYS */;
 UNLOCK TABLES;
 
---
 -- Table structure for table `users`
 --
 
@@ -239,6 +238,39 @@ LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
 INSERT INTO `users` VALUES ('32253449','$2b$12$IjISqKx9ZfJNFlAyjMEqP.hutEw4b2zrYrAMgovIuSW8y2Z6kqo5G','이윤형','AI 융합대학','소프트웨어학과',2,'2026-05-11 06:30:32',1);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `personal_schedules`
+--
+
+DROP TABLE IF EXISTS `personal_schedules`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `personal_schedules` (
+  `schedule_id` int NOT NULL AUTO_INCREMENT,
+  `student_id` varchar(20) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `schedule_date` date NOT NULL,
+  `schedule_time` time DEFAULT NULL,
+  `building_id` int DEFAULT NULL,
+  `memo` text,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`schedule_id`),
+  KEY `student_id` (`student_id`),
+  KEY `building_id` (`building_id`),
+  CONSTRAINT `personal_schedules_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `users` (`student_id`),
+  CONSTRAINT `personal_schedules_ibfk_2` FOREIGN KEY (`building_id`) REFERENCES `buildings` (`building_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `personal_schedules`
+--
+
+LOCK TABLES `personal_schedules` WRITE;
+/*!40000 ALTER TABLE `personal_schedules` DISABLE KEYS */;
+/*!40000 ALTER TABLE `personal_schedules` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 

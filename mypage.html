@@ -2,6 +2,9 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>My Page</title>
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
 
@@ -20,6 +23,11 @@
             font-family: 'Pretendard', sans-serif;
             background: var(--bg-color);
             color: var(--text-color);
+        }
+
+        body.modal-open {
+            overflow: hidden;
+            padding-right: var(--modal-scrollbar-width, 0px);
         }
 
         #app-nav {
@@ -79,6 +87,7 @@
             width: 24px;
             text-align: center;
             font-size: 19px;
+            line-height: 1;
         }
 
         .nav-auth {
@@ -109,9 +118,9 @@
         .account-toggle {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 12px;
             width: 100%;
-            min-height: 58px;
             border: none;
             border-radius: 8px;
             background: transparent;
@@ -141,15 +150,17 @@
         }
 
         .account-caret {
-            width: 8px;
-            height: 8px;
-            border-right: 2px solid #4f46e5;
-            border-bottom: 2px solid #4f46e5;
-            transform: rotate(225deg);
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-end;
+            min-width: 46px;
+            color: #4f46e5;
+            font-size: 24px;
+            line-height: 1;
         }
 
         .account-caret.is-open {
-            transform: rotate(45deg);
+            transform: none;
         }
 
         .logout-menu {
@@ -227,6 +238,28 @@
             border-radius: 10px;
             padding: 14px 16px;
             background: #ffffff;
+            cursor: default;
+        }
+
+        .favorite-card {
+            cursor: pointer;
+        }
+
+        .favorite-card:hover {
+            border-color: #bfdbfe;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.10);
+        }
+
+        .schedule-card-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .schedule-card-main {
+            min-width: 0;
+            flex: 1;
         }
 
         .schedule-title {
@@ -243,18 +276,89 @@
             margin-bottom: 6px;
         }
 
+        .schedule-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 12px;
+            color: var(--sub-text);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
         .schedule-memo {
             color: var(--sub-text);
             font-size: 14px;
             line-height: 1.5;
         }
 
+        .personal-card .delete-button {
+            flex: 0 0 auto;
+            border: none;
+            border-radius: 8px;
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 9px 12px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .personal-card .delete-button:hover {
+            background: #dc2626;
+            color: #ffffff;
+        }
+
         .form-grid {
+            position: relative;
             display: grid;
             gap: 12px;
         }
 
+        .building-search-wrap {
+            position: relative;
+        }
+
+        .building-results {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            z-index: 20;
+            display: none;
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid #d6dde6;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+        }
+
+        .building-results.is-open {
+            display: block;
+        }
+
+        .building-result {
+            width: 100%;
+            border: none;
+            background: white;
+            padding: 11px 14px;
+            color: #172033;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .building-result:hover {
+            background: #eaf2ff;
+            color: #2563eb;
+        }
+
         input,
+        select,
         textarea {
             width: 100%;
             box-sizing: border-box;
@@ -272,9 +376,69 @@
         }
 
         input:focus,
+        select:focus,
         textarea:focus {
             border-color: var(--primary-color);
             box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.16);
+        }
+
+        .detail-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(15, 23, 42, 0.42);
+        }
+
+        .detail-modal {
+            position: relative;
+            width: min(620px, 100%);
+            max-height: 78vh;
+            overflow: hidden;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 24px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.24);
+        }
+
+        .detail-close {
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            border: none;
+            background: transparent;
+            font-size: 22px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .detail-modal h3 {
+            margin: 0 36px 10px 0;
+            font-size: 22px;
+            line-height: 1.35;
+        }
+
+        .detail-body {
+            margin-top: 16px;
+            max-height: 42vh;
+            overflow: hidden;
+            white-space: pre-wrap;
+            color: #40516b;
+            font-size: 14px;
+            line-height: 1.65;
+        }
+
+        .panel-source {
+            display: inline-block;
+            margin-top: 16px;
+            color: #2563eb;
+            font-size: 14px;
+            font-weight: 800;
+            text-decoration: none;
         }
 
         .primary-button {
@@ -305,6 +469,177 @@
         .login-required p {
             margin: 0 0 18px;
             color: var(--sub-text);
+        }
+
+        /* Unified sidebar override */
+        #app-nav {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 292px !important;
+            height: 100vh !important;
+            z-index: 120 !important;
+            box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: column !important;
+            padding: 30px 14px 18px !important;
+            background: rgba(255, 255, 255, 0.97) !important;
+            box-shadow: 5px 0 18px rgba(15, 23, 42, 0.10) !important;
+        }
+
+        .nav-brand {
+            margin: 0 0 30px 8px !important;
+            color: #2563eb !important;
+            font-family: 'Pretendard', sans-serif !important;
+            font-size: 24px !important;
+            font-weight: 800 !important;
+            line-height: 1.2 !important;
+            letter-spacing: 0 !important;
+        }
+
+        .nav-menu {
+            display: grid !important;
+            gap: 8px !important;
+        }
+
+        .nav-item {
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            width: 100% !important;
+            min-height: 50px !important;
+            box-sizing: border-box !important;
+            border: none !important;
+            border-radius: 8px !important;
+            background: transparent !important;
+            color: #64748b !important;
+            padding: 0 14px !important;
+            font-family: 'Pretendard', sans-serif !important;
+            font-size: 16px !important;
+            font-weight: 800 !important;
+            line-height: 1 !important;
+            text-align: left !important;
+            text-decoration: none !important;
+            cursor: pointer !important;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background: #eaf2ff !important;
+            color: #2563eb !important;
+        }
+
+        .nav-icon {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 24px !important;
+            min-width: 24px !important;
+            height: 24px !important;
+            color: currentColor !important;
+            font-size: 19px !important;
+            line-height: 1 !important;
+            text-align: center !important;
+        }
+
+        .nav-auth {
+            margin-top: auto !important;
+            display: grid !important;
+            gap: 8px !important;
+            padding: 12px 8px 0 !important;
+            border-top: 1px solid #e5e7eb !important;
+        }
+
+        .nav-auth button {
+            border: none !important;
+            border-radius: 8px !important;
+            background: #eef4fb !important;
+            color: #24425f !important;
+            padding: 11px 12px !important;
+            font-family: 'Pretendard', sans-serif !important;
+            font-weight: 800 !important;
+            text-align: left !important;
+            cursor: pointer !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .account-toggle,
+        .nav-auth .account-toggle,
+        .nav-auth .account-toggle:hover {
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            min-height: 58px !important;
+            border: none !important;
+            border-radius: 8px !important;
+            background: transparent !important;
+            color: #111827 !important;
+            padding: 8px 12px !important;
+            font-family: 'Pretendard', sans-serif !important;
+            font-weight: 800 !important;
+            cursor: pointer !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .account-avatar,
+        .nav-auth .account-avatar {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 36px !important;
+            min-width: 36px !important;
+            height: 36px !important;
+            border-radius: 50% !important;
+            background: #eef2ff !important;
+            color: #4f46e5 !important;
+            padding: 0 !important;
+            font-weight: 800 !important;
+        }
+
+        .account-name,
+        .nav-auth .account-name {
+            flex: 1 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            min-width: 0 !important;
+            color: #111827 !important;
+            padding: 0 !important;
+            text-align: left !important;
+            white-space: nowrap !important;
+        }
+
+        .account-caret,
+        .nav-auth .account-caret {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 52px !important;
+            min-width: 52px !important;
+            height: 36px !important;
+            padding: 0 !important;
+            color: #4f46e5 !important;
+            font-size: 0 !important;
+            line-height: 1 !important;
+        }
+
+        .account-caret::before,
+        .nav-auth .account-caret::before {
+            content: '' !important;
+            width: 8px !important;
+            height: 8px !important;
+            border-right: 2px solid currentColor !important;
+            border-bottom: 2px solid currentColor !important;
+            transform: rotate(225deg) !important;
+            transform-origin: center !important;
+        }
+
+        .account-caret.is-open::before,
+        .nav-auth .account-caret.is-open::before {
+            transform: rotate(45deg) !important;
         }
     </style>
 </head>
@@ -356,6 +691,14 @@
                     <div class="form-grid">
                         <input id="schedule-title" type="text" placeholder="일정 제목">
                         <input id="schedule-date" type="date">
+                        <select id="schedule-time">
+                            <option value="">시간 선택</option>
+                        </select>
+                        <div class="building-search-wrap">
+                            <input id="schedule-building-search" type="text" placeholder="건물 검색">
+                            <input id="schedule-building" type="hidden">
+                            <div id="building-results" class="building-results"></div>
+                        </div>
                         <textarea id="schedule-memo" placeholder="메모"></textarea>
                         <button class="primary-button" onclick="createPersonalSchedule()">일정 추가</button>
                     </div>
@@ -365,6 +708,10 @@
     </main>
 
     <script>
+        let favoriteEvents = [];
+        let personalSchedules = [];
+        let buildingOptions = [];
+
         function escapeHtml(value) {
             return String(value || "")
                 .replaceAll("&", "&amp;")
@@ -372,6 +719,103 @@
                 .replaceAll(">", "&gt;")
                 .replaceAll('"', "&quot;")
                 .replaceAll("'", "&#039;");
+        }
+
+        function splitSource(description) {
+            const text = String(description || "").trim();
+            const sourceMatch = text.match(/\n*원문:\s*(https?:\/\/\S+)\s*$/);
+
+            if (!sourceMatch) {
+                return { body: text, sourceUrl: "" };
+            }
+
+            return {
+                body: text.slice(0, sourceMatch.index).trim(),
+                sourceUrl: sourceMatch[1]
+            };
+        }
+
+        function openFavoriteDetail(index) {
+            const event = favoriteEvents[index];
+
+            if (!event) return;
+
+            closeDetailModal();
+
+            const detail = splitSource(event.description);
+            const sourceHtml = detail.sourceUrl
+                ? '<a class="panel-source" href="' + escapeHtml(detail.sourceUrl) + '" target="_blank" rel="noopener noreferrer">원문 보기</a>'
+                : "";
+
+            const backdrop = document.createElement("div");
+            backdrop.className = "detail-backdrop";
+            backdrop.id = "detail-backdrop";
+            backdrop.onclick = function (clickEvent) {
+                if (clickEvent.target === backdrop) {
+                    closeDetailModal();
+                }
+            };
+            backdrop.innerHTML = [
+                '<div class="detail-modal">',
+                '<button class="detail-close" onclick="closeDetailModal()">×</button>',
+                '<h3>' + escapeHtml(event.title) + '</h3>',
+                '<div class="schedule-meta">',
+                '<span>' + escapeHtml(event.building_name || "장소 미정") + '</span>',
+                '<span>' + escapeHtml(formatDateTime(event.start_datetime)) + ' ~ ' + escapeHtml(formatDateTime(event.end_datetime)) + '</span>',
+                '</div>',
+                '<div class="detail-body">' + escapeHtml(detail.body || "상세 내용이 없습니다.") + '</div>',
+                sourceHtml,
+                '</div>'
+            ].join("");
+
+            document.body.appendChild(backdrop);
+            document.body.style.setProperty("--modal-scrollbar-width", Math.max(0, window.innerWidth - document.documentElement.clientWidth) + "px");
+            document.body.classList.add("modal-open");
+        }
+
+        function openPersonalScheduleDetail(index) {
+            const schedule = personalSchedules[index];
+
+            if (!schedule) return;
+
+            closeDetailModal();
+
+            const timeText = schedule.schedule_time ? " " + String(schedule.schedule_time).slice(0, 5) : "";
+            const placeText = schedule.building_name || "장소 미정";
+            const memoText = schedule.memo || "메모가 없습니다.";
+
+            const backdrop = document.createElement("div");
+            backdrop.className = "detail-backdrop";
+            backdrop.id = "detail-backdrop";
+            backdrop.onclick = function (clickEvent) {
+                if (clickEvent.target === backdrop) {
+                    closeDetailModal();
+                }
+            };
+            backdrop.innerHTML = [
+                '<div class="detail-modal">',
+                '<button class="detail-close" onclick="closeDetailModal()">×</button>',
+                '<h3>' + escapeHtml(schedule.title) + '</h3>',
+                '<div class="schedule-meta">',
+                '<span>' + escapeHtml(placeText) + '</span>',
+                '<span>' + escapeHtml(formatDate(schedule.schedule_date) + timeText) + '</span>',
+                '</div>',
+                '<div class="detail-body">' + escapeHtml(memoText) + '</div>',
+                '</div>'
+            ].join("");
+
+            document.body.appendChild(backdrop);
+            document.body.style.setProperty("--modal-scrollbar-width", Math.max(0, window.innerWidth - document.documentElement.clientWidth) + "px");
+            document.body.classList.add("modal-open");
+        }
+
+        function closeDetailModal() {
+            const backdrop = document.getElementById("detail-backdrop");
+            if (backdrop) {
+                backdrop.remove();
+            }
+            document.body.classList.remove("modal-open");
+            document.body.style.removeProperty("--modal-scrollbar-width");
         }
 
         function updateAuthButtons() {
@@ -447,18 +891,21 @@
                 }
 
                 const favorites = await response.json();
+                favoriteEvents = favorites;
 
                 if (!Array.isArray(favorites) || favorites.length === 0) {
                     list.innerHTML = '<p class="empty-text">즐겨찾기한 행사가 없습니다.</p>';
                     return;
                 }
 
-                list.innerHTML = favorites.map(function (event) {
+                list.innerHTML = favorites.map(function (event, index) {
                     return [
-                        '<div class="schedule-card">',
+                        '<div class="schedule-card favorite-card" onclick="openFavoriteDetail(' + index + ')">',
                         '<div class="schedule-title">' + escapeHtml(event.title) + '</div>',
-                        '<div class="schedule-date">' + escapeHtml(formatDateTime(event.start_datetime)) + '</div>',
-                        '<div class="schedule-memo">' + escapeHtml(event.description || "상세 내용이 없습니다.") + '</div>',
+                        '<div class="schedule-meta">',
+                        '<span>' + escapeHtml(event.building_name || "장소 미정") + '</span>',
+                        '<span>' + escapeHtml(formatDateTime(event.start_datetime)) + '</span>',
+                        '</div>',
                         '</div>'
                     ].join("");
                 }).join("");
@@ -487,19 +934,28 @@
                 }
 
                 const schedules = await response.json();
+                personalSchedules = Array.isArray(schedules) ? schedules : [];
 
-                if (!Array.isArray(schedules) || schedules.length === 0) {
+                if (personalSchedules.length === 0) {
                     list.innerHTML = '<p class="empty-text">등록된 개인 일정이 없습니다.</p>';
                     return;
                 }
 
-                list.innerHTML = schedules.map(function (schedule) {
+                list.innerHTML = personalSchedules.map(function (schedule, index) {
+                    const timeText = schedule.schedule_time ? " " + String(schedule.schedule_time).slice(0, 5) : "";
+                    const placeText = schedule.building_name || "장소 미정";
                     return [
-                        '<div class="schedule-card">',
+                        '<div class="schedule-card favorite-card personal-card" onclick="openPersonalScheduleDetail(' + index + ')">',
+                        '<div class="schedule-card-row">',
+                        '<div class="schedule-card-main">',
                         '<div class="schedule-title">' + escapeHtml(schedule.title) + '</div>',
-                        '<div class="schedule-date">' + escapeHtml(formatDate(schedule.schedule_date)) + '</div>',
-                        '<div class="schedule-memo">' + escapeHtml(schedule.memo || "메모 없음") + '</div>',
-                        '<button class="delete-button" onclick="deletePersonalSchedule(' + schedule.schedule_id + ')">삭제</button>',
+                        '<div class="schedule-meta">',
+                        '<span>' + escapeHtml(placeText) + '</span>',
+                        '<span>' + escapeHtml(formatDate(schedule.schedule_date) + timeText) + '</span>',
+                        '</div>',
+                        '</div>',
+                        '<button class="delete-button" onclick="event.stopPropagation(); deletePersonalSchedule(' + schedule.schedule_id + ')">삭제</button>',
+                        '</div>',
                         '</div>'
                     ].join("");
                 }).join("");
@@ -508,6 +964,97 @@
                 console.error(error);
                 list.innerHTML = '<p class="empty-text">개인 일정 요청에 실패했습니다.</p>';
             }
+        }
+
+        function populateTimeSelect() {
+            const select = document.getElementById("schedule-time");
+            if (!select) return;
+
+            const options = ['<option value="">시간 선택</option>'];
+            for (let hour = 9; hour <= 21; hour += 1) {
+                for (const minute of [0, 30]) {
+                    if (hour === 21 && minute === 30) {
+                        continue;
+                    }
+                    const value = String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
+                    options.push('<option value="' + value + '">' + value + '</option>');
+                }
+            }
+            select.innerHTML = options.join("");
+        }
+
+        async function loadBuildingSelect() {
+            const hiddenInput = document.getElementById("schedule-building");
+            const searchInput = document.getElementById("schedule-building-search");
+            const resultBox = document.getElementById("building-results");
+            if (!hiddenInput || !searchInput || !resultBox) return;
+
+            try {
+                const response = await fetch("/buildings");
+                if (!response.ok) {
+                    return;
+                }
+
+                const seenBuildings = new Set();
+                buildingOptions = (await response.json()).filter(function (building) {
+                    const key = String(building.building_name || "").replace(/\s+/g, "").toLowerCase();
+                    if (!key || seenBuildings.has(key)) {
+                        return false;
+                    }
+                    seenBuildings.add(key);
+                    return true;
+                });
+
+                searchInput.addEventListener("input", function () {
+                    hiddenInput.value = "";
+                    renderBuildingResults(searchInput.value);
+                });
+
+                searchInput.addEventListener("focus", function () {
+                    renderBuildingResults(searchInput.value);
+                });
+
+                document.addEventListener("click", function (event) {
+                    if (!event.target.closest(".building-search-wrap")) {
+                        resultBox.classList.remove("is-open");
+                    }
+                });
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function renderBuildingResults(keyword) {
+            const resultBox = document.getElementById("building-results");
+            const hiddenInput = document.getElementById("schedule-building");
+            const searchInput = document.getElementById("schedule-building-search");
+            const normalized = String(keyword || "").replace(/\s+/g, "").toLowerCase();
+
+            if (!resultBox || !hiddenInput || !searchInput) return;
+
+            const matches = buildingOptions.filter(function (building) {
+                const name = String(building.building_name || "");
+                return !normalized || name.replace(/\s+/g, "").toLowerCase().includes(normalized);
+            }).slice(0, 8);
+
+            if (matches.length === 0) {
+                resultBox.innerHTML = '<div class="building-result">검색 결과가 없습니다.</div>';
+                resultBox.classList.add("is-open");
+                return;
+            }
+
+            resultBox.innerHTML = matches.map(function (building) {
+                return '<button type="button" class="building-result" data-building-id="' + building.building_id + '" data-building-name="' + escapeHtml(building.building_name) + '">' + escapeHtml(building.building_name) + '</button>';
+            }).join("");
+
+            resultBox.querySelectorAll(".building-result[data-building-id]").forEach(function (button) {
+                button.addEventListener("click", function () {
+                    hiddenInput.value = button.dataset.buildingId;
+                    searchInput.value = button.dataset.buildingName;
+                    resultBox.classList.remove("is-open");
+                });
+            });
+            resultBox.classList.add("is-open");
         }
 
         async function createPersonalSchedule() {
@@ -521,6 +1068,9 @@
 
             const title = document.getElementById("schedule-title").value.trim();
             const date = document.getElementById("schedule-date").value;
+            const time = document.getElementById("schedule-time").value;
+            const buildingId = document.getElementById("schedule-building").value;
+            const buildingName = document.getElementById("schedule-building-search").value.trim();
             const memo = document.getElementById("schedule-memo").value.trim();
 
             if (!title) {
@@ -530,6 +1080,11 @@
 
             if (!date) {
                 alert("날짜를 선택해주세요.");
+                return;
+            }
+
+            if (buildingName && !buildingId) {
+                alert("검색 결과에 있는 건물을 선택해주세요.");
                 return;
             }
 
@@ -543,6 +1098,8 @@
                     body: JSON.stringify({
                         title: title,
                         schedule_date: date,
+                        schedule_time: time,
+                        building_id: buildingId ? Number(buildingId) : null,
                         memo: memo
                     })
                 });
@@ -556,6 +1113,10 @@
         
                 document.getElementById("schedule-title").value = "";
                 document.getElementById("schedule-date").value = "";
+                document.getElementById("schedule-time").value = "";
+                document.getElementById("schedule-building").value = "";
+                document.getElementById("schedule-building-search").value = "";
+                document.getElementById("building-results").classList.remove("is-open");
                 document.getElementById("schedule-memo").value = "";
 
                 await loadPersonalSchedules();
@@ -613,10 +1174,22 @@
 
        window.addEventListener("DOMContentLoaded", function () {
             updateAuthButtons();
+            populateTimeSelect();
+            loadBuildingSelect();
 
             if (checkLogin()) {
                 loadFavorites();
                 loadPersonalSchedules();
+            }
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                closeDetailModal();
+                const resultBox = document.getElementById("building-results");
+                if (resultBox) {
+                    resultBox.classList.remove("is-open");
+                }
             }
         });
     </script>

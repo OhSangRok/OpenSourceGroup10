@@ -3,6 +3,9 @@
 
 <head>
     <meta charset="utf-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Campus Bus Map</title>
     <!-- 구글 폰트 적용 -->
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
@@ -246,16 +249,38 @@
             color: #172033;
         }
 
-        .nav-favorite-list {
+        .nav-todos {
+            display: none;
+            min-height: 0;
+            margin: 14px 8px 0;
+            padding-top: 14px;
+            border-top: 1px solid #e5e7eb;
+            overflow: hidden;
+        }
+
+        .nav-todos.is-visible {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nav-todos h3 {
+            margin: 0 0 10px;
+            font-size: 14px;
+            color: #172033;
+        }
+
+        .nav-favorite-list,
+        .nav-todo-list {
             display: grid;
             gap: 8px;
-            max-height: 34vh;
+            max-height: 26vh;
             overflow-y: auto;
             overflow-x: hidden;
             padding-right: 3px;
         }
 
-        .nav-favorite-card {
+        .nav-favorite-card,
+        .nav-todo-card {
             width: 100%;
             border: 1px solid #e5e7eb;
             background: #fff;
@@ -266,7 +291,8 @@
             overflow: hidden;
         }
 
-        .nav-favorite-card:hover {
+        .nav-favorite-card:hover,
+        .nav-todo-card:hover {
             border-color: #bfdbfe;
             background: #f8fbff;
         }
@@ -277,7 +303,8 @@
             line-height: 1.35;
         }
 
-        .nav-favorite-title {
+        .nav-favorite-title,
+        .nav-todo-title {
             overflow: hidden;
             white-space: nowrap;
             line-height: 1.35;
@@ -311,20 +338,23 @@
             }
         }
 
-        .nav-favorite-title {
+        .nav-favorite-title,
+        .nav-todo-title {
             color: #172033;
             font-size: 13px;
             font-weight: 800;
         }
 
-        .nav-favorite-time {
+        .nav-favorite-time,
+        .nav-todo-time {
             margin-top: 6px;
             color: #2563eb;
             font-size: 12px;
             font-weight: 800;
         }
 
-        .nav-favorite-empty {
+        .nav-favorite-empty,
+        .nav-todo-empty {
             margin: 0;
             color: #64748b;
             font-size: 13px;
@@ -506,6 +536,22 @@
             padding: 10px 8px;
             border-radius: 8px;
             background: #fff8df;
+        }
+
+        .overlay-event.is-personal {
+            margin: 0 -8px;
+            padding: 10px 8px;
+            border-radius: 8px;
+            background: #eef6ff;
+        }
+
+        .overlay-badge {
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 5px;
+            color: #2563eb;
+            font-size: 11px;
+            font-weight: 800;
         }
 
         .overlay-event-main {
@@ -872,6 +918,12 @@
                         <p class="nav-favorite-empty">저장한 행사가 없습니다.</p>
                     </div>
                 </div>
+                <div id="nav-todos" class="nav-todos">
+                    <h3>내 할일</h3>
+                    <div id="nav-todo-list" class="nav-todo-list">
+                        <p class="nav-todo-empty">등록한 할일이 없습니다.</p>
+                    </div>
+                </div>
                 <div id="auth-buttons" class="nav-auth">
                     <button onclick="location.href='/login'">로그인</button>
                 </div>
@@ -1027,7 +1079,11 @@
                     }
 
                     favoriteEventIds = await loadFavoriteEventIds();
-                    const events = (await loadBuildingEvents(building.building_id)).sort(function (a, b) {
+                    const buildingEvents = await loadBuildingEvents(building.building_id);
+                    const buildingTodos = (await loadPersonalSchedules()).filter(function (schedule) {
+                        return Number(schedule.building_id) === Number(building.building_id);
+                    }).map(normalizePersonalSchedule);
+                    const events = buildingEvents.concat(buildingTodos).sort(function (a, b) {
                         const aFavorite = favoriteEventIds.has(a.event_id) ? 0 : 1;
                         const bFavorite = favoriteEventIds.has(b.event_id) ? 0 : 1;
 
@@ -1047,14 +1103,16 @@
                         events.forEach(function (event) {
                             const eventIndex = currentBuildingEvents.indexOf(event);
                             const isFavorite = favoriteEventIds.has(event.event_id);
+                            const isPersonal = Boolean(event.is_personal_schedule);
 
                             eventHtml += [
-                                `<div class="overlay-event ${isFavorite ? "is-favorite" : ""}">`,
+                                `<div class="overlay-event ${isFavorite ? "is-favorite" : ""} ${isPersonal ? "is-personal" : ""}">`,
                                 `<button class="overlay-event-main" title="${escapeHtml(event.title)}" onclick="openBuildingEventDetail(${eventIndex})">`,
+                                isPersonal ? `<span class="overlay-badge">내 할일</span>` : ``,
                                 `<strong class="event-list-title marquee-title"><span>${escapeHtml(event.title)}</span></strong>`,
-                                `<small>${escapeHtml(formatDateTime(event.start_datetime))} ~ ${escapeHtml(formatDateTime(event.end_datetime))}</small>`,
+                                `<small>${escapeHtml(formatDateTime(event.start_datetime))}${isPersonal ? "" : " ~ " + escapeHtml(formatDateTime(event.end_datetime))}</small>`,
                                 `</button>`,
-                                `<button class="favorite-star ${isFavorite ? "active" : ""}" data-event-id="${event.event_id}" onclick="toggleFavorite(${event.event_id}, this)">★</button>`,
+                                isPersonal ? `` : `<button class="favorite-star ${isFavorite ? "active" : ""}" data-event-id="${event.event_id}" onclick="toggleFavorite(${event.event_id}, this)">★</button>`,
                                 `</div>`
                             ].join("");
                         });
@@ -1293,7 +1351,7 @@
                 `<div class="event-detail-modal">`,
                 `<button class="overlay-close" onclick="closeEventDetail()">×</button>`,
                 `<h3>${escapeHtml(eventData.title)}</h3>`,
-                `<p class="event-detail-time">${escapeHtml(formatDateTime(eventData.start_datetime))} ~ ${escapeHtml(formatDateTime(eventData.end_datetime))}</p>`,
+                `<p class="event-detail-time">${escapeHtml(formatDateTime(eventData.start_datetime))}${eventData.is_personal_schedule ? "" : " ~ " + escapeHtml(formatDateTime(eventData.end_datetime))}</p>`,
                 `<div class="event-detail-body">${escapeHtml(detailBody || "상세 내용이 없습니다.")}</div>`,
                 sourceHtml,
                 `</div>`
@@ -1419,6 +1477,9 @@
                 });
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        handleAuthExpired(false);
+                    }
                     return;
                 }
 
@@ -1498,6 +1559,52 @@
             }
         }
 
+        async function loadPersonalSchedules() {
+            const token = localStorage.getItem("access_token");
+
+            if (!token) {
+                return [];
+            }
+
+            try {
+                const response = await fetch("/personal-schedules", {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        handleAuthExpired(false);
+                    }
+                    return [];
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error(error);
+                return [];
+            }
+        }
+
+        function normalizePersonalSchedule(schedule) {
+            const dateText = String(schedule.schedule_date || "").slice(0, 10);
+            const timeText = schedule.schedule_time ? String(schedule.schedule_time).slice(0, 5) : "00:00";
+            const dateTime = dateText ? `${dateText}T${timeText}` : "";
+
+            return {
+                event_id: `personal-${schedule.schedule_id}`,
+                schedule_id: schedule.schedule_id,
+                title: schedule.title,
+                description: schedule.memo || "",
+                building_id: schedule.building_id,
+                building_name: schedule.building_name,
+                start_datetime: dateTime,
+                end_datetime: dateTime,
+                is_personal_schedule: true
+            };
+        }
+
         async function loadFavoriteEventIds() {
             const favorites = await loadFavorites();
             return new Set(
@@ -1522,6 +1629,9 @@
                 });
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        handleAuthExpired(false);
+                    }
                     return [];
                 }
 
@@ -1530,6 +1640,24 @@
                 console.error(error);
                 return [];
             }
+        }
+
+        function handleAuthExpired(showMessage = true) {
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("name");
+            favoriteEventIds = new Set();
+
+            document.querySelectorAll(".favorite-star").forEach(function (button) {
+                button.classList.remove("active");
+            });
+
+            updateAuthButtons();
+
+            if (showMessage) {
+                alert("로그인 시간이 만료되었습니다. 다시 로그인해주세요.");
+            }
+
+            location.href = "/login";
         }
 
         function setFavoriteStarState(eventId, isActive) {
@@ -1608,6 +1736,46 @@
             requestAnimationFrame(prepareMarqueeTitles);
         }
 
+        async function renderNavTodos() {
+            const token = localStorage.getItem("access_token");
+            const box = document.getElementById("nav-todos");
+            const list = document.getElementById("nav-todo-list");
+
+            if (!box || !list) {
+                return;
+            }
+
+            if (!token) {
+                box.classList.remove("is-visible");
+                list.innerHTML = `<p class="nav-todo-empty">등록한 할일이 없습니다.</p>`;
+                return;
+            }
+
+            box.classList.add("is-visible");
+            list.innerHTML = `<p class="nav-todo-empty">할일을 불러오는 중...</p>`;
+
+            const schedules = await loadPersonalSchedules();
+            const todos = schedules.filter(function (schedule) {
+                return schedule.building_id;
+            });
+
+            if (todos.length === 0) {
+                list.innerHTML = `<p class="nav-todo-empty">등록한 할일이 없습니다.</p>`;
+                return;
+            }
+
+            list.innerHTML = todos.map(function (schedule) {
+                const todo = normalizePersonalSchedule(schedule);
+                return [
+                    `<button class="nav-todo-card" title="${escapeHtml(todo.title)}" onclick="moveToTodoBuilding(${todo.building_id})">`,
+                    `<div class="nav-todo-title marquee-title"><span>${escapeHtml(todo.title)}</span></div>`,
+                    `<div class="nav-todo-time">${escapeHtml(formatDateTime(todo.start_datetime))}</div>`,
+                    `</button>`
+                ].join("");
+            }).join("");
+            requestAnimationFrame(prepareMarqueeTitles);
+        }
+
         async function toggleFavorite(eventId, button) {
             const token = localStorage.getItem("access_token");
 
@@ -1632,6 +1800,10 @@
                 });
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        handleAuthExpired();
+                        return;
+                    }
                     const data = await response.json();
                     alert(data.detail || "즐겨찾기 처리 중 오류가 발생했습니다.");
                     return;
@@ -1674,6 +1846,10 @@
                 });
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        handleAuthExpired();
+                        return;
+                    }
                     alert("즐겨찾기 목록을 불러오지 못했습니다.");
                     return;
                 }
@@ -1723,6 +1899,10 @@
             showBuildingOverlay(building);
         }
 
+        function moveToTodoBuilding(buildingId) {
+            moveToFavoriteBuilding(buildingId);
+        }
+
         async function removeFavoriteFromList(eventId, button) {
             const token = localStorage.getItem("access_token");
 
@@ -1741,6 +1921,10 @@
                 });
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        handleAuthExpired();
+                        return;
+                    }
                     alert("즐겨찾기 삭제에 실패했습니다.");
                     return;
                 }
@@ -1823,10 +2007,12 @@
                 ].join("");
 
                 renderNavFavorites();
+                renderNavTodos();
                 showNotificationAlerts();
             } else {
                 authButtons.innerHTML = '<button onclick="location.href=\'/login\'">로그인</button>';
                 renderNavFavorites();
+                renderNavTodos();
             }
         }
 

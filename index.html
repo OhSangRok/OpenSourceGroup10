@@ -165,11 +165,13 @@
             font-weight: 800;
             letter-spacing: 0;
             line-height: 1.2;
+            flex-shrink: 0;
         }
 
         .nav-menu {
             display: grid;
             gap: 8px;
+            flex-shrink: 0;
         }
 
         .nav-item {
@@ -187,6 +189,7 @@
             font-weight: 800;
             cursor: pointer;
             text-align: left;
+            flex-shrink: 0;
         }
 
         .nav-item:hover,
@@ -208,6 +211,7 @@
             gap: 8px;
             padding: 12px 8px 0;
             border-top: 1px solid #e5e7eb;
+            flex-shrink: 0;
         }
 
         .nav-auth button {
@@ -238,6 +242,7 @@
         .nav-favorites.is-visible {
             display: flex;
             flex-direction: column;
+            flex: 1;
         }
 
         .nav-favorites h3 {
@@ -247,9 +252,12 @@
         }
 
         .nav-favorite-list {
-            display: grid;
+            display: flex;
+            flex-direction: column;
             gap: 8px;
-            max-height: 34vh;
+            flex: 1;
+            max-height: none;
+            min-height: 0;
             overflow-y: auto;
             overflow-x: hidden;
             padding-right: 3px;
@@ -264,6 +272,7 @@
             text-align: left;
             cursor: pointer;
             overflow: hidden;
+            flex: 0 0 auto;
         }
 
         .nav-favorite-card:hover {
@@ -321,6 +330,45 @@
             margin-top: 6px;
             color: #2563eb;
             font-size: 12px;
+            font-weight: 800;
+        }
+
+        .nav-favorite-meta,
+        .arrival-row,
+        .event-time-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .arrival-row {
+            margin-top: 10px;
+        }
+
+        .arrival-row .arrival-time {
+            margin-top: 0;
+        }
+
+        .event-time-row {
+            margin-top: 4px;
+        }
+
+        .event-upcoming-label {
+            flex: 0 0 auto;
+            margin-left: auto;
+            color: #ef4444;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+            position: relative;
+            top: -2px;
+        }
+
+        .nav-section-title {
+            margin: 10px 0 0;
+            color: #172033;
+            font-size: 13px;
             font-weight: 800;
         }
 
@@ -675,11 +723,13 @@
             font-weight: 800 !important;
             line-height: 1.2 !important;
             letter-spacing: 0 !important;
+            flex-shrink: 0 !important;
         }
 
         .nav-menu {
             display: grid !important;
             gap: 8px !important;
+            flex-shrink: 0 !important;
         }
 
         .nav-item {
@@ -701,6 +751,7 @@
             text-align: left !important;
             text-decoration: none !important;
             cursor: pointer !important;
+            flex-shrink: 0 !important;
         }
 
         .nav-item:hover,
@@ -728,6 +779,7 @@
             gap: 8px !important;
             padding: 12px 8px 0 !important;
             border-top: 1px solid #e5e7eb !important;
+            flex-shrink: 0 !important;
         }
 
         .nav-auth > button:not(.account-toggle) {
@@ -989,9 +1041,9 @@
                     <button class="nav-item active" id="nav-home" onclick="showHomeView()"><span class="nav-icon">▦</span>Campus</button>
                     <button class="nav-item" id="nav-chat" onclick="location.href='/chatbot'"><span class="nav-icon">⊕</span>ChatBot</button>
                     <button class="nav-item" id="nav-event" onclick="location.href='/event'"><span class="nav-icon">□</span>Event</button>
+                    <button class="nav-item" id="nav-mypage" onclick="location.href='/mypage'"><span class="nav-icon">▣</span>My Page</button>
                 </div>
                 <div id="nav-favorites" class="nav-favorites">
-                    <h3>내 즐겨찾기</h3>
                     <div id="nav-favorite-list" class="nav-favorite-list">
                         <p class="nav-favorite-empty">저장한 행사가 없습니다.</p>
                     </div>
@@ -1166,9 +1218,13 @@
                     }
 
                     favoriteEventIds = await loadFavoriteEventIds();
-                    const events = (await loadBuildingEvents(building.building_id)).sort(function (a, b) {
-                        const aFavorite = favoriteEventIds.has(a.event_id) ? 0 : 1;
-                        const bFavorite = favoriteEventIds.has(b.event_id) ? 0 : 1;
+                    const buildingEvents = await loadBuildingEvents(building.building_id);
+                    const personalEvents = (await loadPersonalSchedules()).filter(function (schedule) {
+                        return Number(schedule.building_id) === Number(building.building_id);
+                    }).map(personalScheduleToEvent);
+                    const events = buildingEvents.concat(personalEvents).sort(function (a, b) {
+                        const aFavorite = a.type === "personal_schedule" ? 1 : (favoriteEventIds.has(a.event_id) ? 0 : 1);
+                        const bFavorite = b.type === "personal_schedule" ? 1 : (favoriteEventIds.has(b.event_id) ? 0 : 1);
 
                         if (aFavorite !== bFavorite) {
                             return aFavorite - bFavorite;
@@ -1185,15 +1241,19 @@
                     } else {
                         events.forEach(function (event) {
                             const eventIndex = currentBuildingEvents.indexOf(event);
-                            const isFavorite = favoriteEventIds.has(event.event_id);
+                            const isPersonal = event.type === "personal_schedule";
+                            const isFavorite = !isPersonal && favoriteEventIds.has(event.event_id);
+                            const favoriteButton = isPersonal
+                                ? ""
+                                : `<button class="favorite-star ${isFavorite ? "active" : ""}" data-event-id="${event.event_id}" onclick="toggleFavorite(${event.event_id}, this)">★</button>`;
 
                             eventHtml += [
                                 `<div class="overlay-event ${isFavorite ? "is-favorite" : ""}">`,
                                 `<button class="overlay-event-main" title="${escapeHtml(event.title)}" onclick="openBuildingEventDetail(${eventIndex})">`,
                                 `<strong class="event-list-title marquee-title"><span>${escapeHtml(event.title)}</span></strong>`,
-                                `<small>${escapeHtml(formatDateTime(event.start_datetime))} ~ ${escapeHtml(formatDateTime(event.end_datetime))}</small>`,
+                                `<small class="event-time-row"><span>${escapeHtml(formatEventDateRange(event))}</span>${getUpcomingLabelHtml(event)}</small>`,
                                 `</button>`,
-                                `<button class="favorite-star ${isFavorite ? "active" : ""}" data-event-id="${event.event_id}" onclick="toggleFavorite(${event.event_id}, this)">★</button>`,
+                                favoriteButton,
                                 `</div>`
                             ].join("");
                         });
@@ -1432,7 +1492,7 @@
                 `<div class="event-detail-modal">`,
                 `<button class="overlay-close" onclick="closeEventDetail()">×</button>`,
                 `<h3>${escapeHtml(eventData.title)}</h3>`,
-                `<p class="event-detail-time">${escapeHtml(formatDateTime(eventData.start_datetime))} ~ ${escapeHtml(formatDateTime(eventData.end_datetime))}</p>`,
+                `<p class="event-detail-time">${escapeHtml(formatEventDateRange(eventData))}</p>`,
                 `<div class="event-detail-body">${escapeHtml(detailBody || "상세 내용이 없습니다.")}</div>`,
                 sourceHtml,
                 `</div>`
@@ -1762,6 +1822,65 @@
             }
         }
 
+        async function loadPersonalSchedules() {
+            const token = localStorage.getItem("access_token");
+
+            if (!token) {
+                return [];
+            }
+
+            try {
+                const response = await fetch("/personal-schedules", {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    return [];
+                }
+
+                const schedules = await response.json();
+                return Array.isArray(schedules) ? schedules : [];
+            } catch (error) {
+                console.error(error);
+                return [];
+            }
+        }
+
+        function personalScheduleToEvent(schedule) {
+            const startDateTime = buildScheduleDateTime(schedule.schedule_date, schedule.schedule_time);
+
+            return {
+                event_id: `personal-${schedule.schedule_id}`,
+                schedule_id: schedule.schedule_id,
+                type: "personal_schedule",
+                title: schedule.title,
+                description: schedule.memo || "개인 일정입니다.",
+                building_id: schedule.building_id,
+                building_name: schedule.building_name,
+                college: null,
+                department: "개인 일정",
+                start_datetime: startDateTime,
+                end_datetime: startDateTime
+            };
+        }
+
+        function buildScheduleDateTime(dateValue, timeValue) {
+            const dateText = String(dateValue || "").slice(0, 10);
+            const timeText = String(timeValue || "").trim();
+
+            if (!dateText) {
+                return "";
+            }
+
+            if (!timeText) {
+                return `${dateText}T00:00:00`;
+            }
+
+            return `${dateText}T${timeText.length === 5 ? `${timeText}:00` : timeText}`;
+        }
+
         function setFavoriteStarState(eventId, isActive) {
             document.querySelectorAll(`.favorite-star[data-event-id="${eventId}"]`).forEach(function (button) {
                 button.classList.toggle("active", isActive);
@@ -1813,28 +1932,55 @@
             }
 
             box.classList.add("is-visible");
-            list.innerHTML = `<p class="nav-favorite-empty">즐겨찾기를 불러오는 중...</p>`;
+            list.innerHTML = `<p class="nav-favorite-empty">일정을 불러오는 중...</p>`;
 
             const favorites = await loadFavorites();
+            const schedules = await loadPersonalSchedules();
             favoriteEventIds = new Set(
                 favorites.map(function (event) {
                     return event.event_id;
                 })
             );
 
-            if (favorites.length === 0) {
-                list.innerHTML = `<p class="nav-favorite-empty">저장한 행사가 없습니다.</p>`;
+            if (favorites.length === 0 && schedules.length === 0) {
+                list.innerHTML = `<p class="nav-favorite-empty">저장한 행사와 할 일이 없습니다.</p>`;
                 return;
             }
 
-            list.innerHTML = favorites.map(function (event) {
+            const favoriteHtml = favorites.map(function (event) {
                 return [
-                    `<button class="nav-favorite-card" title="${escapeHtml(event.title)}" onclick="moveToFavoriteBuilding(${event.building_id})">`,
+                    `<button class="nav-favorite-card" title="${escapeHtml(event.title)}" onclick="handleFavoriteListClick(${event.event_id}, ${event.building_id}, '${escapeHtml(event.end_datetime)}', this)">`,
                     `<div class="nav-favorite-title marquee-title"><span>${escapeHtml(event.title)}</span></div>`,
-                    `<div class="nav-favorite-time">${escapeHtml(formatDateTime(event.start_datetime))}</div>`,
+                    `<div class="nav-favorite-meta">`,
+                    `<span class="nav-favorite-time">${escapeHtml(formatDateTime(event.start_datetime))}</span>`,
+                    getUpcomingLabelHtml(event),
+                    `</div>`,
                     `</button>`
                 ].join("");
             }).join("");
+            const scheduleHtml = schedules.map(function (schedule) {
+                const onclick = schedule.building_id
+                    ? `moveToFavoriteBuilding(${schedule.building_id})`
+                    : "location.href='/mypage'";
+                const scheduleEvent = personalScheduleToEvent(schedule);
+
+                return [
+                    `<button class="nav-favorite-card" title="${escapeHtml(schedule.title)}" onclick="${onclick}">`,
+                    `<div class="nav-favorite-title marquee-title"><span>${escapeHtml(schedule.title)}</span></div>`,
+                    `<div class="nav-favorite-meta">`,
+                    `<span class="nav-favorite-time">${escapeHtml(formatDateTime(scheduleEvent.start_datetime))}</span>`,
+                    getUpcomingLabelHtml(scheduleEvent),
+                    `</div>`,
+                    `</button>`
+                ].join("");
+            }).join("");
+
+            list.innerHTML = [
+                `<p class="nav-section-title">내 즐겨찾기</p>`,
+                favoriteHtml || `<p class="nav-favorite-empty">저장한 행사가 없습니다.</p>`,
+                `<p class="nav-section-title">내 할 일</p>`,
+                scheduleHtml || `<p class="nav-favorite-empty">등록된 할 일이 없습니다.</p>`
+            ].join("");
             requestAnimationFrame(prepareMarqueeTitles);
         }
 
@@ -1921,12 +2067,12 @@
                 } else {
                     favorites.forEach(function (event) {
                         favoriteHtml += [
-                            `<div class="bus-card" onclick="moveToFavoriteBuilding(${event.building_id})">`,
+                            `<div class="bus-card" onclick="handleFavoriteListClick(${event.event_id}, ${event.building_id}, '${escapeHtml(event.end_datetime)}', this)">`,
                             `<div class="event-title-row">`,
                             `<div class="bus-name event-list-title marquee-title"><span>${escapeHtml(event.title)}</span></div>`,
                             `<button class="favorite-star active" data-event-id="${event.event_id}" onclick="event.stopPropagation(); removeFavoriteFromList(${event.event_id}, this)">★</button>`,
                             `</div>`,
-                            `<div class="arrival-time">${escapeHtml(formatDateTime(event.start_datetime))} ~ ${escapeHtml(formatDateTime(event.end_datetime))}</div>`,
+                            `<div class="arrival-row"><span class="arrival-time">${escapeHtml(formatEventDateRange(event))}</span>${getUpcomingLabelHtml(event)}</div>`,
                             `</div>`
                         ].join("");
                     });
@@ -1941,7 +2087,7 @@
 
         function moveToFavoriteBuilding(buildingId) {
             const building = campusBuildings.find(function (item) {
-                return item.building_id === buildingId;
+                return Number(item.building_id) === Number(buildingId);
             });
 
             if (!building || !map) {
@@ -1951,6 +2097,19 @@
             closeSidebar();
 
             showBuildingOverlay(building);
+        }
+
+        async function handleFavoriteListClick(eventId, buildingId, endDateTime, element) {
+            if (!isPastDateTime(endDateTime)) {
+                moveToFavoriteBuilding(buildingId);
+                return;
+            }
+
+            if (!confirm("이미 지난 일정입니다. 즐겨찾기에서 삭제하시겠습니까?")) {
+                return;
+            }
+
+            await removeFavoriteFromList(eventId, element);
         }
 
         async function removeFavoriteFromList(eventId, button) {
@@ -2017,7 +2176,62 @@
                 return "";
             }
 
-            return String(value).replace("T", " ").slice(0, 16);
+            return String(value).replace("T", " ").slice(0, 16).replace(/:$/, "");
+        }
+
+        function isPastDateTime(value) {
+            if (!value) {
+                return false;
+            }
+
+            const date = new Date(value);
+
+            if (Number.isNaN(date.getTime())) {
+                return false;
+            }
+
+            return date.getTime() < Date.now();
+        }
+
+        function formatEventDateRange(eventData) {
+            if (!eventData) {
+                return "";
+            }
+
+            const startText = formatDateTime(eventData.start_datetime);
+
+            if (eventData.type === "personal_schedule") {
+                return startText;
+            }
+
+            return `${startText} ~ ${formatDateTime(eventData.end_datetime)}`;
+        }
+
+        function getUpcomingLabelHtml(eventData) {
+            const label = getUpcomingLabel(eventData);
+            return label ? `<span class="event-upcoming-label">${escapeHtml(label)}</span>` : "";
+        }
+
+        function getUpcomingLabel(eventData) {
+            if (!eventData || !eventData.start_datetime) {
+                return "";
+            }
+
+            const now = new Date();
+            const start = new Date(eventData.start_datetime);
+
+            if (Number.isNaN(start.getTime())) {
+                return "";
+            }
+
+            const diffMs = start.getTime() - now.getTime();
+
+            if (diffMs < 0 || diffMs > 7 * 24 * 60 * 60 * 1000) {
+                return "";
+            }
+
+            const diffDays = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+            return diffDays <= 0 ? "오늘" : `D-${diffDays}`;
         }
 
         const kakaoScript = document.createElement('script');

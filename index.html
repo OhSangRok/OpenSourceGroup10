@@ -693,7 +693,53 @@
             font-weight: 700;
             cursor: pointer;
         }
-    
+
+        #current-event-banner {
+            display: none;
+            width: 100%;
+            min-height: 42px;
+            box-sizing: border-box;
+            border: none;
+            background: white;
+            color: #172033;
+            padding: 3px 12px;
+            border-radius: 999px;
+            font-family: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        #current-event-banner.is-visible {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        #search-box.has-current-event #search-input,
+        #search-box.has-current-event #search-button {
+            display: none;
+        }
+
+        .current-event-label {
+            display: block;
+            color: #ef4444;
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .current-event-title {
+            display: block;
+            margin-top: 4px;
+            overflow: hidden;
+            color: #172033;
+            font-size: 14px;
+            font-weight: 800;
+            line-height: 1.35;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+	    
 
         /* Unified sidebar override */
         body {
@@ -1060,7 +1106,8 @@
                        placeholder="건물명 또는 행사명 검색"
                         onkeydown="handleSearchKey(event)"
                    >
-                <button onclick="searchCampus()">검색</button>
+                <button id="search-button" onclick="searchCampus()">검색</button>
+                <button id="current-event-banner" type="button" onclick="showSearchBox()"></button>
             </div>
             <div id="map"></div>
 
@@ -1361,7 +1408,7 @@
                     html += `<p class="overlay-empty">일반버스 도착 정보가 없습니다.</p>`;
                 }
 
-                if (station.stopId) {
+                if (station.stopId && shouldShowShuttleInfo(station)) {
                     try {
                         const shuttleResponse = await fetch(`/shuttle-stops/${station.stopId}/next-shuttle`);
 
@@ -1378,7 +1425,7 @@
                             html += [
                                 `<div class="bus-card">`,
                                 `<div class="bus-name">셔틀버스</div>`,
-                                `<div class="arrival-time">${shuttle.remaining_minutes}분 후 도착</div>`,
+                                `<div class="arrival-time">${formatShuttleArrivalText(shuttle.remaining_minutes)}</div>`,
                                 `</div>`
                             ].join("");
 
@@ -1395,7 +1442,7 @@
                         console.error("셔틀버스 조회 실패:", error);
                         html += `<p class="overlay-empty">셔틀버스 정보를 불러오지 못했습니다.</p>`;
                     }
-                } else {
+                } else if (!station.stopId) {
                     html += `<p class="overlay-empty">이 정류장에 stopId가 없습니다.</p>`;
                 }
 
@@ -1582,6 +1629,7 @@
             setActiveNav("nav-home");
             closeSidebar();
             closeBuildingOverlay();
+            loadCurrentEventBanner();
 
             if (map && defaultCenter && defaultLevel) {
                 map.setCenter(defaultCenter);
@@ -1788,6 +1836,83 @@
             }
         }
 
+        async function loadCurrentEventBanner() {
+            try {
+                const response = await fetch("/events");
+
+                if (!response.ok) {
+                    showSearchBox();
+                    return;
+                }
+
+                const events = await response.json();
+                const currentEvent = Array.isArray(events)
+                    ? events.find(function (event) {
+                        return hasBuildingEvent(event) && isCurrentEvent(event);
+                    })
+                    : null;
+
+                if (!currentEvent) {
+                    showSearchBox();
+                    return;
+                }
+
+                showCurrentEventBanner(currentEvent);
+            } catch (error) {
+                console.error(error);
+                showSearchBox();
+            }
+        }
+
+        function showCurrentEventBanner(eventData) {
+            const searchBox = document.getElementById("search-box");
+            const banner = document.getElementById("current-event-banner");
+
+            if (!searchBox || !banner) {
+                return;
+            }
+
+            searchBox.classList.add("has-current-event");
+            banner.classList.add("is-visible");
+            banner.innerHTML = [
+                `<span class="current-event-label">현재 진행 중</span>`,
+                `<span class="current-event-title">${escapeHtml(eventData.title)}</span>`
+            ].join("");
+        }
+
+        function showSearchBox() {
+            const searchBox = document.getElementById("search-box");
+            const banner = document.getElementById("current-event-banner");
+
+            if (!searchBox || !banner) {
+                return;
+            }
+
+            searchBox.classList.remove("has-current-event");
+            banner.classList.remove("is-visible");
+            banner.innerHTML = "";
+        }
+
+        function isCurrentEvent(eventData) {
+            if (!eventData || !eventData.start_datetime || !eventData.end_datetime) {
+                return false;
+            }
+
+            const now = Date.now();
+            const start = new Date(eventData.start_datetime).getTime();
+            const end = new Date(eventData.end_datetime).getTime();
+
+            if (Number.isNaN(start) || Number.isNaN(end)) {
+                return false;
+            }
+
+            return start <= now && now <= end;
+        }
+
+        function hasBuildingEvent(eventData) {
+            return eventData && eventData.building_id !== null && eventData.building_id !== undefined;
+        }
+
         async function loadFavoriteEventIds() {
             const favorites = await loadFavorites();
             return new Set(
@@ -1850,6 +1975,7 @@
 
         function personalScheduleToEvent(schedule) {
             const startDateTime = buildScheduleDateTime(schedule.schedule_date, schedule.schedule_time);
+            const endDateTime = addHoursToDateTime(startDateTime, 1);
 
             return {
                 event_id: `personal-${schedule.schedule_id}`,
@@ -1862,7 +1988,7 @@
                 college: null,
                 department: "개인 일정",
                 start_datetime: startDateTime,
-                end_datetime: startDateTime
+                end_datetime: endDateTime
             };
         }
 
@@ -1879,6 +2005,27 @@
             }
 
             return `${dateText}T${timeText.length === 5 ? `${timeText}:00` : timeText}`;
+        }
+
+        function addHoursToDateTime(value, hours) {
+            const date = new Date(value);
+
+            if (Number.isNaN(date.getTime())) {
+                return value;
+            }
+
+            date.setHours(date.getHours() + hours);
+            return toLocalDateTimeString(date);
+        }
+
+        function toLocalDateTimeString(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            const hour = String(date.getHours()).padStart(2, "0");
+            const minute = String(date.getMinutes()).padStart(2, "0");
+
+            return `${year}-${month}-${day}T${hour}:${minute}:00`;
         }
 
         function setFavoriteStarState(eventId, isActive) {
@@ -1908,7 +2055,7 @@
                 const shift = text.scrollWidth - title.clientWidth;
                 if (shift > 8) {
                     const travel = shift + 36;
-                    const duration = Math.max(6, travel / 18);
+                    const duration = Math.max(10, travel / 10);
                     title.style.setProperty("--title-shift", `${travel}px`);
                     title.style.setProperty("--title-duration", `${duration}s`);
                     title.classList.add("is-marquee");
@@ -2171,6 +2318,21 @@
             }
         }
 
+        function shouldShowShuttleInfo(station) {
+            const hiddenStationNames = ["단국대.종합실험동", "단국대.치과병원"];
+            return !hiddenStationNames.includes(String(station.name || "").trim());
+        }
+
+        function formatShuttleArrivalText(minutes) {
+            const value = Number(minutes);
+
+            if (value === 0) {
+                return "지금 도착";
+            }
+
+            return `${minutes}분 후 도착`;
+        }
+
         function formatDateTime(value) {
             if (!value) {
                 return "";
@@ -2201,7 +2363,7 @@
             const startText = formatDateTime(eventData.start_datetime);
 
             if (eventData.type === "personal_schedule") {
-                return startText;
+                return `${startText} ~ ${formatDateTime(eventData.end_datetime)}`;
             }
 
             return `${startText} ~ ${formatDateTime(eventData.end_datetime)}`;
@@ -2303,6 +2465,7 @@
         window.addEventListener("DOMContentLoaded", async function () {
             updateAuthButtons();
             await loadNotifications();
+            await loadCurrentEventBanner();
         });
 
         document.addEventListener("keydown", function (event) {

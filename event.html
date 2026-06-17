@@ -33,9 +33,17 @@
         .nav-interest-list { display: grid; gap: 8px; }
         .nav-interest-card { width: 100%; min-width: 0; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff; padding: 10px 12px; color: #172033; font-family: inherit; text-align: left; cursor: pointer; }
         .nav-interest-card:hover { border-color: #bfdbfe; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.10); }
-        .nav-interest-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #172033; font-size: 13px; font-weight: 800; }
+        .nav-interest-title { display: block; overflow: hidden; white-space: nowrap; color: #172033; font-size: 13px; font-weight: 800; }
         .nav-interest-time { display: block; margin-top: 6px; color: #2563eb; font-size: 12px; font-weight: 800; }
         .nav-interest-empty { margin: 0; color: #94a3b8; font-size: 13px; font-weight: 700; line-height: 1.5; }
+        .marquee-title { display: block; width: 100%; overflow: hidden; }
+        .marquee-title span { display: inline-block; padding-right: 36px; }
+        .marquee-title.is-marquee span { animation: title-marquee var(--title-duration, 12s) linear infinite; }
+        .marquee-title.is-marquee:hover span { animation-play-state: paused; }
+        @keyframes title-marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(calc(var(--title-shift, 0px) * -1)); }
+        }
 
         .page { margin-left: 292px; min-height: 100vh; padding: 34px 40px 60px; box-sizing: border-box; }
         .page-inner { width: min(920px, 100%); margin: 0 auto; }
@@ -71,6 +79,14 @@
         .event-detail { padding: 0 16px 16px; color: #64748b; line-height: 1.55; font-size: 14px; }
         .event-source { display: inline-flex; align-items: center; margin-top: 10px; min-height: 24px; color: #2563eb; font-size: 13px; font-weight: 800; text-decoration: none; }
         .event-source:hover { color: #2563eb; }
+        .interest-detail-backdrop { position: fixed; inset: 0; z-index: 300; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(15, 23, 42, 0.36); box-sizing: border-box; }
+        .interest-detail-modal { position: relative; width: min(520px, 100%); max-height: min(680px, 86vh); overflow-y: auto; border-radius: 8px; background: white; padding: 24px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22); box-sizing: border-box; }
+        .interest-detail-modal h3 { margin: 0 34px 10px 0; color: #172033; font-size: 20px; line-height: 1.35; }
+        .interest-detail-time { margin: 0 0 14px; color: #2563eb; font-size: 13px; font-weight: 800; }
+        .interest-detail-body { white-space: pre-wrap; color: #475569; font-size: 14px; line-height: 1.65; }
+        .interest-detail-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+        .interest-delete-button { border: none; border-radius: 8px; background: #fee2e2; color: #dc2626; padding: 10px 14px; font-family: inherit; font-weight: 800; cursor: pointer; }
+        .interest-close-button { position: absolute; top: 12px; right: 12px; border: none; background: transparent; color: #64748b; font-size: 24px; line-height: 1; cursor: pointer; }
 
 
         /* Unified sidebar override */
@@ -353,14 +369,115 @@
                 return;
             }
 
-            list.innerHTML = items.map(function (item) {
+            list.innerHTML = items.map(function (item, index) {
                 return [
-                    '<button class="nav-interest-card" title="' + escapeHtml(item.title) + '">',
-                    '<span class="nav-interest-title">' + escapeHtml(item.title) + '</span>',
+                    '<button class="nav-interest-card" title="' + escapeHtml(item.title) + '" onclick="openInterestDetail(' + index + ')">',
+                    '<span class="nav-interest-title marquee-title"><span>' + escapeHtml(item.title) + '</span></span>',
                     '<span class="nav-interest-time">' + escapeHtml(formatEventPeriod(item)) + '</span>',
                     '</button>'
                 ].join('');
             }).join('');
+            requestAnimationFrame(prepareMarqueeTitles);
+        }
+
+        function openInterestDetail(index) {
+            const item = getInterestedEvents().slice(0, 8)[index];
+
+            if (!item) return;
+
+            closeInterestDetail();
+
+            const source = item.source_url
+                ? '<a class="event-source" href="' + escapeHtml(item.source_url) + '" target="_blank" rel="noopener">원문 보기</a>'
+                : '';
+            const deleteAction = isPastInterestEvent(item)
+                ? [
+                    '<div class="interest-detail-actions">',
+                    '<button class="interest-delete-button" onclick="deleteInterestFromDetail(' + index + ')">삭제</button>',
+                    '</div>'
+                ].join('')
+                : '';
+            const backdrop = document.createElement('div');
+            backdrop.className = 'interest-detail-backdrop';
+            backdrop.id = 'interest-detail-backdrop';
+            backdrop.onclick = function (event) {
+                if (event.target === backdrop) closeInterestDetail();
+            };
+            backdrop.innerHTML = [
+                '<div class="interest-detail-modal">',
+                '<button class="interest-close-button" onclick="closeInterestDetail()">×</button>',
+                '<h3>' + escapeHtml(item.title) + '</h3>',
+                '<p class="interest-detail-time">' + escapeHtml(formatEventPeriod(item)) + '</p>',
+                '<div class="interest-detail-body">' + escapeHtml(item.description || '상세 내용이 없습니다.') + '</div>',
+                source,
+                deleteAction,
+                '</div>'
+            ].join('');
+            document.body.appendChild(backdrop);
+        }
+
+        function isPastInterestEvent(item) {
+            if (!item || !item.end_datetime) return false;
+
+            const end = new Date(item.end_datetime);
+            if (Number.isNaN(end.getTime())) return false;
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const endDate = new Date(end);
+            endDate.setHours(0, 0, 0, 0);
+
+            return endDate < today;
+        }
+
+        function closeInterestDetail() {
+            const backdrop = document.getElementById('interest-detail-backdrop');
+            if (backdrop) backdrop.remove();
+        }
+
+        function deleteInterestFromDetail(index) {
+            const item = getInterestedEvents().slice(0, 8)[index];
+            if (!item) return;
+
+            const key = getEventKey(item);
+            const nextItems = getInterestedEvents().filter(function (eventItem) {
+                return getEventKey(eventItem) !== key;
+            });
+
+            saveInterestedEvents(nextItems);
+            interestedEventKeys = new Set(nextItems.map(getEventKey));
+            closeInterestDetail();
+            renderInterestSidebar();
+            renderTodayEventInterestStates();
+        }
+
+        function renderTodayEventInterestStates() {
+            document.querySelectorAll('.interest-button[data-event-index]').forEach(function (button) {
+                const item = todayEvents[Number(button.dataset.eventIndex)];
+                if (!item) return;
+                button.classList.toggle('active', interestedEventKeys.has(getEventKey(item)));
+            });
+        }
+
+        function prepareMarqueeTitles() {
+            document.querySelectorAll('.marquee-title').forEach(function (title) {
+                const text = title.querySelector('span');
+                if (!text) return;
+
+                title.classList.remove('is-marquee');
+                title.style.removeProperty('--title-shift');
+                title.style.removeProperty('--title-duration');
+
+                const shift = text.scrollWidth - title.clientWidth;
+                if (shift > 8) {
+                    const travel = shift + 36;
+                    const duration = Math.max(10, travel / 10);
+                    title.style.setProperty('--title-shift', travel + 'px');
+                    title.style.setProperty('--title-duration', duration + 's');
+                    title.classList.add('is-marquee');
+                }
+            });
         }
 
         function toggleInterest(index, button) {
@@ -414,7 +531,7 @@
                 '<details class="event-card">',
                 '<summary>',
                 '<span class="event-title">',
-                '<button class="interest-button' + (isInterested ? ' active' : '') + '" title="즐겨찾기" onclick="event.preventDefault(); event.stopPropagation(); toggleInterest(' + index + ', this)">★</button>',
+                '<button class="interest-button' + (isInterested ? ' active' : '') + '" data-event-index="' + index + '" title="즐겨찾기" onclick="event.preventDefault(); event.stopPropagation(); toggleInterest(' + index + ', this)">★</button>',
                 '<span class="event-title-copy">',
                 '<strong>' + escapeHtml(item.title) + '</strong>',
                 '<span class="event-time">' + escapeHtml(formatEventPeriod(item)) + '</span>',
